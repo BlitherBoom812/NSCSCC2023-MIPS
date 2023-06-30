@@ -4,7 +4,7 @@ module id
 input  wire                   rst,
 input  wire [`INST_BUS]       pc_i,          
 input  wire [`INST_BUS]       instr_i,
-input  wire [`GPR_BUS]        rs_data_i,//数据是哪里读出来的？
+input  wire [`GPR_BUS]        rs_data_i,
 input  wire [`GPR_BUS]        rt_data_i,
 input  wire                   bypass_ex_regfile_write_enable_i,
 input  wire [`GPR_ADDR_BUS]   bypass_ex_regfile_write_addr_i,
@@ -12,16 +12,15 @@ input  wire [`GPR_BUS]        bypass_ex_regfile_write_data_i,
 input  wire                   bypass_mem_regfile_write_enable_i,
 input  wire [`GPR_ADDR_BUS]   bypass_mem_regfile_write_addr_i,
 input  wire [`GPR_BUS]        bypass_mem_regfile_write_data_i,
-input  wire [`GPR_ADDR_BUS]   exe_regfile_write_addr_i,//必要吗
+input  wire [`GPR_ADDR_BUS]   exe_regfile_write_addr_i,
 input  wire                   now_in_delayslot_i,
 input  wire                   exe_mem_to_reg_i,
 input  wire [`EXCEP_TYPE_BUS] exception_type_i,
 
-output reg  [`INST_BUS]       pc_o,//?
-output reg  [`INST_BUS]       instr_o,//?
+output reg  [`INST_BUS]       pc_o,
+output reg  [`INST_BUS]       instr_o,
 output reg  [`GPR_BUS]        rs_data_o,
 output reg  [`GPR_BUS]        rt_data_o,
-//control
 output reg  [`ALUOP_BUS]      aluop_o,              
 output reg  [`GPR_ADDR_BUS]   regfile_write_addr_o,
 output reg                    now_in_delayslot_o,  
@@ -48,8 +47,10 @@ reg is_break;
 reg is_syscall;
 reg is_eret;
 
-reg rs_read_enable;//?
-reg rt_read_enable;//?
+reg rs_read_enable;
+reg rt_read_enable;
+reg rs_stall_request;
+reg rt_stall_request;
 
 wire [5:0]op = instr_i[31:26];
 wire [4:0]rs = instr_i[25:21];
@@ -57,55 +58,74 @@ wire [4:0]rt = instr_i[20:16];
 wire [4:0]rd = instr_i[15:11];
 wire [4:0]shamt = instr_i[10:6];
 wire [5:0]funct = instr_i[5:0];
-wire [15:0]offset = instr_i[15:0];//J型怎么办
+wire [15:0]offset = instr_i[15:0];
 
 
 wire [31:0] pc_add4;
 wire [31:0] pc_add8;
 wire [31:0] signed_extend_sll2 ={{14{instr_i[15]}},instr_i[15:0],2'b00};
-wire [31:0] signed_extend = {{16{instr_i[15]}},instr_i[15:0]};//没有无符号拓展吗
+wire [31:0] signed_extend = {{16{instr_i[15]}},instr_i[15:0]};
 
 assign pc_add4 = pc_i + 32'h4;
 assign pc_add8 = pc_i + 32'h8;
 assign imm16_o = instr_i[15:0];
 
-assign id_stall_request_o = (rst == `RST_ENABLE )?1'b0:((exe_mem_to_reg_i == 1'b1 && rs_read_enable == 1'b1 && (exe_regfile_write_addr_i == rs || exe_regfile_write_addr_i == rt))?1'b1:1'b0);
+assign id_stall_request_o = rs_stall_request | rt_stall_request;
+
+
 
 assign exception_type_o = {exception_type_i[31],~instr_valid,exception_type_i[29],is_break,is_syscall,exception_type_i[26:1],is_eret};
-
+// load relevant
+always @ (*)
+begin
+	rs_stall_request <= 1'b0;
+	rt_stall_request <= 1'b0;
+	if(rst == `RST_ENABLE)
+		;
+	else if(exe_mem_to_reg_i == 1'b1 && rs_read_enable == 1'b1 && exe_regfile_write_addr_i == rs)
+		rs_stall_request <= 1'b1;
+	else if(exe_mem_to_reg_i == 1'b1 && rt_read_enable == 1'b1 && exe_regfile_write_addr_i == rt)
+		rt_stall_request <= 1'b1;
+end
 
 //handle bypass
 always @ (*)
 begin
     if(rst == `RST_ENABLE)
         rs_data_o <= 32'h0;
-    else if(rs_read_enable == 1'b1 && bypass_ex_regfile_write_addr_i == rs && bypass_ex_regfile_write_enable_i == 1'b1) 
+    else if(rs_read_enable == 1'b1 && bypass_ex_regfile_write_addr_i == rs 
+    && bypass_ex_regfile_write_enable_i == 1'b1) 
         rs_data_o <= bypass_ex_regfile_write_data_i;
-	else if(rs_read_enable == 1'b1 && bypass_mem_regfile_write_addr_i == rs && bypass_mem_regfile_write_enable_i == 1'b1)
+	else if(rs_read_enable == 1'b1 && bypass_mem_regfile_write_addr_i == rs
+	&& bypass_mem_regfile_write_enable_i == 1'b1)
 		rs_data_o <= bypass_mem_regfile_write_data_i;
 	else if(rs_read_enable == 1'b1)
 		rs_data_o <= rs_data_i;
-	else rs_data_o <= 32'h0;    
+	else rs_data_o <= 32'h0;
+    
 end
 
 always @ (*)
 begin
     if(rst == `RST_ENABLE)
         rt_data_o <= 32'h0;
-    else if(rt_read_enable == 1'b1 && bypass_ex_regfile_write_addr_i == rt && bypass_ex_regfile_write_enable_i == 1'b1) 
+    else if(rt_read_enable == 1'b1 && bypass_ex_regfile_write_addr_i == rt 
+    && bypass_ex_regfile_write_enable_i == 1'b1) 
         rt_data_o <= bypass_ex_regfile_write_data_i;
-	else if(rt_read_enable == 1'b1 && bypass_mem_regfile_write_addr_i == rt&& bypass_mem_regfile_write_enable_i == 1'b1)
+	else if(rt_read_enable == 1'b1 && bypass_mem_regfile_write_addr_i == rt
+	&& bypass_mem_regfile_write_enable_i == 1'b1)
 		rt_data_o <= bypass_mem_regfile_write_data_i;
 	else if(rt_read_enable == 1'b1)
 		rt_data_o <= rt_data_i;
 	else rt_data_o <= 32'h0;
 end
 
-always @ (*) begin
+always @ (*)
+begin
     if(rst == `RST_ENABLE)
     begin
-        pc_o <= 32'b0;
-		instr_o <= 32'b0;
+        pc_o <= `ZEROWORD32;
+		instr_o <= `ZEROWORD32;
         aluop_o <= 8'h0;   
         rs_read_enable <= 1'b0;
         rt_read_enable <= 1'b0;
@@ -118,17 +138,16 @@ always @ (*) begin
 		lo_write_enable_o <= 1'b0;
         cp0_write_enable_o <= 1'b0;
 		mem_to_reg_o <= 1'b0;
-		pc_return_addr_o <= 32'b0;
+		pc_return_addr_o <= `ZEROWORD32;
 		cp0_read_addr_o <= 5'b00000;
 		hilo_read_addr_o <= 1'b0;
 		branch_enable_o <= 1'b0;
-        branch_addr_o <= 32'b0;
+        branch_addr_o <= `ZEROWORD32;
         instr_valid <= 1'b0;
         is_eret<= 1'b0;
         is_syscall <= 1'b0;
         is_break <= 1'b0;
-    end 
-	else begin
+    end else begin
         pc_o <= pc_i;
 		instr_o <= instr_i;
 		aluop_o <= 8'b00000000;
@@ -137,8 +156,8 @@ always @ (*) begin
 		now_in_delayslot_o <= now_in_delayslot_i;
 		next_in_delayslot_o <= 1'b0;
         branch_enable_o <= 1'h0;
-        branch_addr_o <= 32'b0;
-		pc_return_addr_o <= 32'b0;
+        branch_addr_o <= `ZEROWORD32;
+		pc_return_addr_o <= `ZEROWORD32;
 		ram_write_enable_o <= 1'b0;
         hi_write_enable_o <= 1'b0;
         lo_write_enable_o <= 1'b0;
@@ -152,8 +171,7 @@ always @ (*) begin
 		is_eret <= 1'b0;
         is_syscall <= 1'b0;
         is_break <= 1'b0;
-        
-		case(op)
+        case(op)
 		6'b000000: begin  
 				case(funct)
 				`ID_AND: begin
