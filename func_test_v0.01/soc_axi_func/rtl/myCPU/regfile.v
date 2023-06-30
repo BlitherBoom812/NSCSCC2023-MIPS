@@ -7,6 +7,7 @@ input wire [`GPR_ADDR_BUS]  regfile_write_addr,
 input wire [`GPR_BUS]       regfile_write_data,
 input wire [`GPR_ADDR_BUS]  rs_read_addr,
 input wire [`GPR_ADDR_BUS]  rt_read_addr,
+
 output reg [`GPR_BUS]       rs_data_o,
 output reg [`GPR_BUS]       rt_data_o
 );
@@ -29,6 +30,7 @@ always @ (*) begin
     else
         rs_data_o <= regfile[rs_read_addr];
 end 
+
 always @ (*) begin
     if(rst == `RST_ENABLE)
         rt_data_o <= 32'h0;

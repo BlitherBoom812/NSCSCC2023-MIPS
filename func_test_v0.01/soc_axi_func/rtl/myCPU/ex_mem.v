@@ -1,11 +1,9 @@
 `include "defines.v"
-
 module ex_mem(
     input   wire                    rst,
     input   wire                    clk,
     input   wire                    exception,
     input   wire[3:0]               stall,
-    
     input   wire[`INST_ADDR_BUS]    exe_pc,
     input   wire[`ALUOP_BUS]        exe_aluop,
     input   wire                    exe_now_in_delayslot,
@@ -44,34 +42,34 @@ module ex_mem(
     output  reg                     mem_mem_to_reg,
     output  reg[`RAM_ADDR_BUS]      mem_ram_read_addr
     );
-    
+
     wire inst_stall, id_stall, exe_stall, data_stall;
     assign inst_stall = stall[0];
     assign id_stall = stall[1];
     assign exe_stall = stall[2];
     assign data_stall = stall[3];
-    
+
     always @ (posedge clk) begin
         if (rst == `RST_ENABLE || exception == `EXCEPTION_ON) begin
-            mem_pc <= `ZEROWORD32;
+            mem_pc <= 32'b0;
             mem_aluop <= 8'h00;
             mem_now_in_delayslot <= 1'b0;
-            mem_exception_type <= `ZEROWORD32;
+            mem_exception_type <= 32'b0;
             mem_regfile_write_enable <= 1'b0;
             mem_ram_write_enable <= 1'b0;
             mem_hi_write_enable <= 1'b0;
             mem_lo_write_enable <= 1'b0;
             mem_cp0_write_enable <= 1'b0;
             mem_regfile_write_addr <= `ZEROWORD5;
-            mem_ram_write_addr <= `ZEROWORD32;
-            mem_cp0_write_addr <= `ZEROWORD32;
-            mem_alu_data <= `ZEROWORD32;
-            mem_ram_write_data <= `ZEROWORD32;
-            mem_hi_write_data <= `ZEROWORD32;
-            mem_lo_write_data <= `ZEROWORD32;
-            mem_cp0_write_data <= `ZEROWORD32;
+            mem_ram_write_addr <= 32'b0;
+            mem_cp0_write_addr <= 32'b0;
+            mem_alu_data <= 32'b0;
+            mem_ram_write_data <= 32'b0;
+            mem_hi_write_data <= 32'b0;
+            mem_lo_write_data <= 32'b0;
+            mem_cp0_write_data <= 32'b0;
             mem_mem_to_reg <= 1'b0;
-            mem_ram_read_addr <= `ZEROWORD32;
+            mem_ram_read_addr <= 32'b0;
         end else if (exe_stall == 1'b1) begin
         end else begin
             if (data_stall == 1'b0) begin

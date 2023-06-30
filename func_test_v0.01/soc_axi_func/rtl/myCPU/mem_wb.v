@@ -1,6 +1,4 @@
-`timescale 1ns / 1ps
 `include "defines.v"
-
 module mem_wb(
     input   wire                clk,
     input   wire                rst,
@@ -16,7 +14,8 @@ module mem_wb(
     input   wire[`CP0_ADDR_BUS] mem_cp0_write_addr,
     input   wire[`GPR_BUS]      mem_cp0_write_data,
     input   wire[`GPR_BUS]      mem_regfile_write_data,
-    
+    input   wire[31:0]          in_wb_pc,
+
     output  reg                 wb_regfile_write_enable,
     output  reg[`GPR_ADDR_BUS]  wb_regfile_write_addr,
     output  reg[`GPR_BUS]       wb_regfile_write_data,
@@ -27,8 +26,6 @@ module mem_wb(
     output  reg                 wb_cp0_write_enable,
     output  reg[`CP0_ADDR_BUS]  wb_cp0_write_addr,
     output  reg[`GPR_BUS]       wb_cp0_write_data,
-    
-    input   wire[31:0]          in_wb_pc,
     output  reg[31:0]           wb_pc
     );
     
@@ -41,18 +38,19 @@ module mem_wb(
     always @ (posedge clk) begin
         if (rst == `RST_ENABLE || exception == `EXCEPTION_ON) begin
             wb_regfile_write_enable <= 1'b0;
-            wb_regfile_write_addr <= `ZEROWORD5;
-            wb_regfile_write_data <= `ZEROWORD32;
+            wb_regfile_write_addr <= 5'b0;
+            wb_regfile_write_data <= 32'b0;
             wb_hi_write_enable <= 1'b0;
-            wb_hi_write_data <= `ZEROWORD32;
+            wb_hi_write_data <= 32'b0;
             wb_lo_write_enable <= 1'b0;
-            wb_lo_write_data <= `ZEROWORD32;
+            wb_lo_write_data <= 32'b0;
             wb_cp0_write_enable <= 1'b0;
-            wb_cp0_write_addr <= `ZEROWORD5;
-            wb_cp0_write_data <= `ZEROWORD32;
-            wb_pc <= `ZEROWORD32;
-        end else if (data_stall == 1'b1 || exe_stall == 1'b1) begin
-        end else begin
+            wb_cp0_write_addr <= 5'b0;
+            wb_cp0_write_data <= 32'b0;
+            wb_pc <= 32'b0;
+        end 
+        else if (data_stall == 1'b1 || exe_stall == 1'b1) ;
+        else begin
             wb_regfile_write_enable <= mem_regfile_write_enable;
             wb_regfile_write_addr <= mem_regfile_write_addr;
             wb_regfile_write_data <= mem_regfile_write_data;
