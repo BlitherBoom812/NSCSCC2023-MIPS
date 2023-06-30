@@ -1,1 +1,8 @@
-/*
+*/
+!func_test_v0.01/
+func_test_v0.01/*
+!func_test_v0.01/soc_axi_func/
+func_test_v0.01/soc_axi_func/*
+!func_test_v0.01/soc_axi_func/rtl/
+func_test_v0.01/soc_axi_func/rtl/*
+!func_test_v0.01/soc_axi_func/rtl/myCPU/
