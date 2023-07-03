@@ -139,9 +139,13 @@ begin
 end
 endtask
 
+reg count_state = 0;
+
 task update_timer;
 begin
-    cp0_count = cp0_count + 1;
+    count_state = ~count_state;
+    if (count_state)
+        cp0_count = cp0_count + 1;
     if(cp0_compare != `ZEROWORD32 && cp0_compare == cp0_count) begin
         timer_int = 1;
         assert_exception(`EXCEP_CODE_INT,32'h0000_0380,pc_i);
