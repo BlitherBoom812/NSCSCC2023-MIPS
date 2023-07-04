@@ -30,6 +30,22 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --------------------------------------------------------------------------------
 ------------------------------------------------------------------------------*/
+/*
+Arch:
+------------------------------------------------------------------------------------------------------------------------
+|                                    [soc_axi_func]                                                                    |
+---------------------------------------------------------------------------------------------------                    |
+|                                      [mycpu_top]                                                |                    |
+|[mips_core]-->--{sram}-->--[sram_interface]-->--{axi}-->--------------[data_cache]-->--{axi}-->--|-->--[main memory]  |
+|                                                  \->[inst&data_cache]-[axi_cache_merge]-->{axi}-|-->--/              |
+---------------------------------------------------------------------------------------------------                    |
+|                                                                                                                      |
+------------------------------------------------------------------------------------------------------------------------
+
+NOTE: 1. inst only read, data both read and write.
+2. for read, through axi_cache_merge; for write (only data, no need to merge), directly.
+*/
+
 module mycpu_top
 (
     input  [5 :0] ext_int      , 
@@ -146,6 +162,7 @@ wire is_data_read;
 
 wire is_flush;
 
+// mips_core 通过 sram_interface 以类sram的形式访问内存。sram_interface输出为axi接口，接入cache模块，cache模块的输出为axi接口
 sram_interface sram_interface_module
 (
 .clk(aclk),
