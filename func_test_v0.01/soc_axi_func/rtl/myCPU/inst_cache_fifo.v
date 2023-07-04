@@ -4,17 +4,19 @@ module inst_cache_fifo(
     input         clk            ,
     input         cache_ena      ,
     
+    // master
     output [31:0] m_araddr       ,
     output        m_arvalid      ,
     input         m_arready      ,
-    input  [31:0] m_rdata        ,
+    input  [31:0] m_rdata        ,  // cache作为主设备从内存（从设备）中读取得到的数据
     input         m_rlast        ,
     input         m_rvalid       ,
     output        m_rready       ,
 
+    // slave
     input  [31:0] s_araddr       ,
     input         s_arvalid      ,
-    output [31:0] s_rdata        ,
+    output [31:0] s_rdata        ,  // cache作为从设备向调用它的cpu（主设备）发送读取的数据
     output        s_rvalid       ,       
     input         flush
 

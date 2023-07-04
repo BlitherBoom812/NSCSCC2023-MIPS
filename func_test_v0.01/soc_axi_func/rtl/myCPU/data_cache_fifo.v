@@ -3,15 +3,17 @@ module data_cache_fifo(
     input         clk            ,
     input         rst            ,
     input         cache_ena      ,
+    // master
+    // ar
     output [31:0] m_araddr       ,
     output        m_arvalid      ,
     input         m_arready      ,
-    
+    // r
     input  [31:0] m_rdata        ,
     input         m_rlast        ,
     input         m_rvalid       ,
     output        m_rready       ,
-    
+    // aw
     output [3:0]  m_awid         ,
     output [7 :0] m_awlen        ,
     output [2 :0] m_awsize       ,
@@ -22,22 +24,24 @@ module data_cache_fifo(
     output [31:0] m_awaddr       ,
     output        m_awvalid      ,
     input         m_awready      ,
-    
+    // w
     output [3:0]  m_wid          ,         
     output [31:0] m_wdata        ,
     output        m_wlast        ,
     output [3:0]  m_wstrb        ,
     output        m_wvalid       ,
     input         m_wready       ,
-
+    // b
     input         m_bvalid       ,
     output        m_bready       ,
-	
-    input  [31:0] s_addr         ,
+	// slave
+    // ar
+    input  [31:0] s_addr         , // ar?
     input         s_arvalid      ,
+    // r
     output [31:0] s_rdata        ,
     output        s_rvalid       ,
-    
+    // aw
     input  [3:0]  s_awvalid      ,
     input  [31:0] s_wdata        ,
     output        s_wready       ,
