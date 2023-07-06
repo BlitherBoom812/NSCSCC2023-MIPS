@@ -328,143 +328,59 @@ axi_cache_merge axi_cache_merge_module
 end
 
 `else 
-    parameter read_data_prepare = 0;
-    parameter read_data_wait = 1;
-    parameter read_data_finish = 2;
-    parameter write_data_prepare = 3;
-    parameter write_data_wait = 4;
-    parameter write_data_finish = 5; 
+    // main
+    parameter write_prepare = 0;
+    parameter write = 1;
+    parameter read_prepare = 2;
+    parameter read = 3;
+    parameter main_end = 4;
+
+    `include "axi_tasks.v"
+
+    reg [7:0] main_state = write_prepare;
+    reg [31:0] main_read_data = 32'h0000_0000;
+
     begin
-    reg [7: 0] axi_state = write_data_prepare;
-    
-    // reg 赋值规则： state转移时将当前状态的变量重置，将下一状态的变量初始化
-    
-    // to be done: araddr should be a reg, not a const
-
-    // write data by axi burst
-    reg my_awvalid = 1'b0;
-    reg my_wlast = 1'b0;
-    reg my_wvalid = 1'b0;
-    reg [31:0] my_wdata = 32'h1234_5678;
-    reg [31:0] my_awaddr = 32'h0000_0001;
-    reg [7:0] my_wdata_count = 8'h00;
-    // aw
-    assign awid = 4'b0000;
-    assign awaddr = my_awaddr;
-    assign awlen = 4'hf;   // 16 words in total
-    assign awsize = 3'b010; // 4 Bytes = 32 bits
-    assign awburst = 2'b10; 
-    assign awlock = 2'b00;
-    assign awcache = 4'b0000;
-    assign awprot = 3'b000;
-    assign awvalid = my_awvalid;
-    // w
-    assign wid = 4'b0000;
-    assign wdata = my_wdata;
-    assign wstrb = 4'b1111;
-    assign wlast = my_wlast;
-    assign wvalid = my_wvalid;
-    // b
-    assign bready = 1'b1;
-
-    // read data by axi burst
-    reg [31:0] my_araddr = 32'h0000_0001;
-    reg my_arvalid = 1'b0;
-    reg [7:0] my_rdata_count = 8'h00;
-    reg my_rready = 1'b0;
-    // ar
-    assign arid = 4'b0000;
-    assign araddr = my_araddr;
-    assign arlen = 4'hf;   // 16 words in total
-    assign arsize = 3'b010; // 4 Bytes = 32 bits
-    assign arburst = 2'b10; 
-    assign arlock = 2'b00;
-    assign arcache = 4'b0000;
-    assign arprot = 3'b000;
-    assign arvalid = my_arvalid;
-    // r
-    assign rready = 1'b1;
-
-    always @(posedge aclk) begin
-        case (axi_state)
-            read_data_prepare: begin
-                if(arready == 1'b1) begin
-                    my_arvalid <= 1'b0;
-
-                    axi_state <= read_data_wait;
-                    $display("read_data_wait");
-                end else begin
-                    my_arvalid <= 1'b1;
+        always @(posedge aclk) begin
+            case (main_state)
+                write_prepare: begin
+                    axi_state <= write_data_prepare;
+                    my_awaddr <= 32'h0000_0000;
+                    my_wdata <= 32'h1234_5678;
+                    main_state <= write;
                 end
-            end
-            read_data_wait: begin
-                my_arvalid <= 1'b1;
-                if(rvalid == 1'b1) begin
-                    my_rdata_count <= my_rdata_count + 1;
-                    $display("read_data[%h]: %h", my_rdata_count, rdata);
+                write: begin
+                    if (axi_state == write_data_wait) begin
+                        my_wdata <= my_wdata + 1;
+                    end
+                    axi_write_data();
+                    if (axi_state == write_data_response) begin
+                  
+                        main_state <= read_prepare;
+                    end
                 end
-                if(rlast == 1'b1) begin
-                    axi_state <= read_data_finish;
-                    $display("read_data_finish");
+                read_prepare: begin
+                    axi_state <= read_data_prepare;  
+                    my_araddr <= 32'h0000_0000;
+                    main_state <= read;
                 end
-            end
-            read_data_finish:
-                ;
-            write_data_prepare: begin
-                if(awready == 1'b1) begin
-                    my_awvalid <= 1'b0;
-
-                    axi_state <= write_data_wait;
-
-                    my_wdata <= {my_wdata[31:8], my_wdata_count};
-                    my_wvalid <= 1'b1;
-                    $display("write_data_wait");
-                end else begin
-                    my_awvalid <= 1'b1;
-                end
-            end 
-            write_data_wait:
-                begin
-                    if(my_wdata_count == 8'h0f) begin
-                        my_wvalid <= 1'b0;
-                        my_wlast <= 1'b0;
-                        my_wdata_count <= 8'h00;
-                        axi_state <= write_data_finish;
-                        $display("write_data_finish");
-                    end else if(my_wdata_count == 8'h0e) begin
-                        my_wdata <= {my_wdata[31:8], my_wdata_count};
-                        my_wvalid <= 1'b1;
-                        my_wlast <= 1'b1;
-                        $display("write_last_data");
-                        if(wready == 1'b1) begin
-                            $display("write_data[%h]: %h", my_wdata_count, my_wdata);
-                            my_wdata_count <= my_wdata_count + 1;
+                read: begin
+                    axi_read_data();
+                    if (axi_state == read_data_wait) begin
+                        if (rvalid == 1'b1) begin
+                            $display("main_read_data: %h", rdata);
                         end
-                    end
-                    else begin
-                        my_wdata <= {my_wdata[31:8], my_wdata_count};
-                        my_wvalid <= 1'b1;
-                        my_wlast <= 1'b0;
-                        if(wready == 1'b1) begin
-                            $display("write_data[%h]: %h", my_wdata_count, my_wdata);
-                            my_wdata_count <= my_wdata_count + 1;
-                        end
-                    end
+                    end else if (axi_state == read_data_finish) begin
+                        main_state <= main_end;
+                    end 
                 end
-            write_data_finish: begin
-                if(bvalid == 1'b1) begin
-                    if (bresp == 1'b0) begin
-                        axi_state <= read_data_prepare;
-
-                        my_arvalid <= 1'b1;
-                        $display("read_data_prepare");
-                    end
-                end
-            end
-            default: $display("axi_state error");
-        endcase
+                main_end:
+                    ;
+                default: 
+                    ;
+            endcase
+        end
     end
-end
 `endif
 
 endmodule
