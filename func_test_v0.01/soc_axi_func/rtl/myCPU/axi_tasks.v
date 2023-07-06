@@ -7,7 +7,9 @@ read 的最终状态为 read_data_finish，write 的最终状态为 write_data_r
 
 读和写都是burst模式，每次读写16个字，每个字4个字节，总共64个字节。后续会添加修改参数功能。
 
-example：
+调用task前需要对相应的变量进行赋值（axi_state, 地址，数据），具体参见example.
+
+Example：
     // main
     parameter write_prepare = 0;
     parameter write = 1;
@@ -166,7 +168,7 @@ task automatic axi_read_data();
     end
 endtask
 
-task axi_write_data();
+task automatic axi_write_data();
     begin
         case (axi_state)
             write_data_prepare: begin
