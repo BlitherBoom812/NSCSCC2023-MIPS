@@ -44,7 +44,7 @@ assign inst_cache_addr = inst_cpu_addr[31:30] == 2'b10 ? {3'b000, inst_cpu_addr[
 assign data_cache_addr = data_cpu_addr[31:30] == 2'b10 ? {3'b000, data_cpu_addr[28:0]} : data_cpu_addr;
 
 parameter[2:0] state_idle = 3'b00;
-parameter[2:0] state_prereq = 3'b001;
+parameter[2:0] state_prereq = 3'b001; // useless
 parameter[2:0] state_req = 3'b010;
 parameter[2:0] state_wait_inst_read = 3'b011;
 parameter[2:0] state_wait_data_read = 3'b100;
@@ -231,7 +231,7 @@ always @ (posedge clk) begin
             end
         end
         
-        
+
     endcase
     end
 end

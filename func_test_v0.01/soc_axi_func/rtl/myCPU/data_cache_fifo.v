@@ -125,11 +125,18 @@ reg [1:0]   set3_hit_ptr;
 reg [4:0]   state;
 reg [3:0]   cacheline_ptr;
 reg         is_read;
+
+// 每次读写修改16 * 4个Byte.改成每次替换一个行(32Byte)。
+// state设计不够合理
+// 读取过程： state_idle -> state_read_miss_handle_dirty -> (state_read_miss_wait_write_burst -> state_read_miss_wait_bvalid ->) state_read_miss_wait_read_burst -> state_read_miss_wait_finish -> state_read_hit -> state_idle
+// 或者：state_idle -> state_read_hit -> state_idle
+// 首先，为什么最终总是回到state_read_hit这个状态。
+
 parameter [4:0] state_idle = 5'b00000;
-parameter [4:0] state_read_hit = 5'b00001;
-parameter [4:0] state_read_miss_wait_write_burst = 5'b00010;
-parameter [4:0] state_read_miss_wait_bvalid = 5'b00011;
-parameter [4:0] state_read_miss_wait_read_burst = 5'b00100;
+parameter [4:0] state_read_hit = 5'b00001;  // 重置cache的状态为初始状态，无论是否hit都会到达这个状态
+parameter [4:0] state_read_miss_wait_write_burst = 5'b00010;    // cpu从cache读取数据，cache从ram读取数据，但是dirty=1，需要先写回ram
+parameter [4:0] state_read_miss_wait_bvalid = 5'b00011;         // state_read_miss_wait_write_burst完成后，等待bvalid信号
+parameter [4:0] state_read_miss_wait_read_burst = 5'b00100;     // 情况1: 从state_read_miss_handle_dirty跳转而来。cpu从cache读取数据，cache从ram读取数据，dirty=0，直接写入cache。情况二：从state_read_miss_wait_bvalid跳转而来。
 parameter [4:0] state_read_miss_wait_finish = 5'b00101;
 parameter [4:0] state_write_hit = 5'b00110;
 parameter [4:0] state_write_miss_wait_write_burst = 5'b00111;
@@ -1787,44 +1794,44 @@ begin
 end
 endtask
 
-task write_cacheline_to_ram(output [31:0] write_data);
-begin
-    case(set)
-    2'b00:begin 
-         case(set0_ptr)
-             2'b00: cacheline_get_data(set0_0,write_data);
-             2'b01: cacheline_get_data(set0_1,write_data);
-             2'b10: cacheline_get_data(set0_2,write_data);
-             2'b11: cacheline_get_data(set0_3,write_data);
-         endcase
-         end
-     2'b01:begin 
-         case(set1_ptr)
-             2'b00: cacheline_get_data(set1_0,write_data);
-             2'b01: cacheline_get_data(set1_1,write_data);
-             2'b10: cacheline_get_data(set1_2,write_data);
-             2'b11: cacheline_get_data(set1_3,write_data);
-         endcase
-         end
-     2'b10:begin 
-         case(set2_ptr)
-             2'b00: cacheline_get_data(set2_0,write_data);
-             2'b01: cacheline_get_data(set2_1,write_data);
-             2'b10: cacheline_get_data(set2_2,write_data);
-             2'b11: cacheline_get_data(set2_3,write_data);
-         endcase
-         end
-     2'b11:begin 
-         case(set3_ptr)
-             2'b00: cacheline_get_data(set3_0,write_data);
-             2'b01: cacheline_get_data(set3_1,write_data);
-             2'b10: cacheline_get_data(set3_2,write_data);
-             2'b11: cacheline_get_data(set3_3,write_data);
-         endcase
-     end
-     endcase
-end
-endtask
+// task cache_read_data(output [31:0] write_data);
+// begin
+//     case(set)
+//     2'b00:begin 
+//          case(set0_ptr)
+//              2'b00: cacheline_get_data(set0_0,write_data);
+//              2'b01: cacheline_get_data(set0_1,write_data);
+//              2'b10: cacheline_get_data(set0_2,write_data);
+//              2'b11: cacheline_get_data(set0_3,write_data);
+//          endcase
+//          end
+//      2'b01:begin 
+//          case(set1_ptr)
+//              2'b00: cacheline_get_data(set1_0,write_data);
+//              2'b01: cacheline_get_data(set1_1,write_data);
+//              2'b10: cacheline_get_data(set1_2,write_data);
+//              2'b11: cacheline_get_data(set1_3,write_data);
+//          endcase
+//          end
+//      2'b10:begin 
+//          case(set2_ptr)
+//              2'b00: cacheline_get_data(set2_0,write_data);
+//              2'b01: cacheline_get_data(set2_1,write_data);
+//              2'b10: cacheline_get_data(set2_2,write_data);
+//              2'b11: cacheline_get_data(set2_3,write_data);
+//          endcase
+//          end
+//      2'b11:begin 
+//          case(set3_ptr)
+//              2'b00: cacheline_get_data(set3_0,write_data);
+//              2'b01: cacheline_get_data(set3_1,write_data);
+//              2'b10: cacheline_get_data(set3_2,write_data);
+//              2'b11: cacheline_get_data(set3_3,write_data);
+//          endcase
+//      end
+//      endcase
+// end
+// endtask
 
 task write_current_tag();
 begin
@@ -2013,7 +2020,7 @@ begin
             if(dirty == 1'b1) begin
                 state <= state_write_miss_wait_write_burst;
                 m_awaddr_r <= get_set_tag_addr(s_addr_r);  
-                write_cacheline_to_ram(m_wdata_r);
+                cache_read_data(m_wdata_r);
                 m_awvalid_r <= 1'b1;
                 m_wvalid_r <= 1'b1;
             end else begin
@@ -2025,7 +2032,7 @@ begin
         state_write_miss_wait_write_burst: begin
             if(m_awready) begin m_awvalid_r = 1'b0; end // need wait awready?
 			if(m_wready && m_awvalid_r == 1'b0) begin
-				write_cacheline_to_ram(m_wdata_r);
+				cache_read_data(m_wdata_r);
 				if(cacheline_ptr == 4'b0000) begin 
 				state <= state_write_miss_wait_bvalid;
 				m_wlast_r <= 1'b1;
@@ -2094,7 +2101,7 @@ begin
             if(dirty == 1'b1) begin
                 state <= state_read_miss_wait_write_burst;
                 m_awaddr_r <=  get_set_tag_addr(s_addr_r);
-                write_cacheline_to_ram(m_wdata_r);
+                cache_read_data(m_wdata_r);
                 m_awvalid_r <= 1'b1;
                 m_wvalid_r <= 1'b1;
             end else begin
@@ -2106,7 +2113,7 @@ begin
         state_read_miss_wait_write_burst: begin
 			if(m_awready) begin m_awvalid_r = 1'b0; end// need wait awrewady?
 			if(m_wready && m_awvalid_r == 1'b0) begin
-				write_cacheline_to_ram(m_wdata_r);
+				cache_read_data(m_wdata_r);
 				if(cacheline_ptr == 4'b0000) begin 
 				    state <= state_read_miss_wait_bvalid;
 				    m_wlast_r <= 1'b1;
