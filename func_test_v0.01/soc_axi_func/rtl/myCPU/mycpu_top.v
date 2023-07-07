@@ -45,7 +45,7 @@ Arch:
 NOTE: 1. inst only read, data both read and write.
 2. for read, through axi_cache_merge; for write (only data, no need to merge), directly.
 */
-`define TEST
+`define _TEST
 
 module mycpu_top
 (
