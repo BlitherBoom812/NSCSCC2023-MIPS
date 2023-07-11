@@ -1,7 +1,7 @@
 //~ `New testbench
 `timescale  1ns / 1ps        
 
-module tb_inst_cache_fifo;   
+module tb_inst_cache_fifo();   
 
 // inst_cache_fifo Parameters
 parameter PERIOD      = 10  ;
@@ -76,14 +76,7 @@ begin
 end
 
 // cpu simulation
-reg inst_req_count;
-
-initial begin
-    cache_ena = 1;    
-    inst_req_count = 0;
-    cpu_state = state_idle;
-    $display("start fetch inst");
-end
+reg [3:0] inst_req_count;
 reg [2:0] cpu_state;
 
 parameter[2:0] state_idle = 3'b00;
@@ -92,25 +85,34 @@ parameter[2:0] state_wait_inst_read = 3'b011;
 parameter[2:0] state_wait_data_read = 3'b100;
 parameter[2:0] state_wait_data_write = 3'b101;
 
+initial begin
+    cache_ena = 1;    
+    inst_req_count = 0;
+    cpu_state = state_idle;
+    $display("start fetch inst");
+end
+
 // read sequence: 0x00000000, 0x00000004, 0x00000008, 0x0000000C, 0x00000010, 0x00000014, 0x00000004, 0x00000014, 0x00000018
 
-task set_s_araddr()
-    case(inst_req_count)
-        0: s_araddr <= 32'h00000000;
-        1: s_araddr <= 32'h00000004;
-        2: s_araddr <= 32'h00000008;
-        3: s_araddr <= 32'h0000000C;
-        4: s_araddr <= 32'h00000010;
-        5: s_araddr <= 32'h00000014;
-        6: s_araddr <= 32'h00000004;
-        7: s_araddr <= 32'h00000014;
-        8: s_araddr <= 32'h00000018;
-        default: s_araddr <= 32'h00000000;
-    endcase
+task set_s_araddr();
+    begin
+        case(inst_req_count)
+            0: s_araddr <= 32'h00000000;
+            1: s_araddr <= 32'h00000004;
+            2: s_araddr <= 32'h00000008;
+            3: s_araddr <= 32'h0000000C;
+            4: s_araddr <= 32'h00000010;
+            5: s_araddr <= 32'h00000014;
+            6: s_araddr <= 32'h00000004;
+            7: s_araddr <= 32'h00000014;
+            8: s_araddr <= 32'h00000018;
+            default: s_araddr <= 32'h00000000;
+        endcase
+    end
 endtask
 
 always @(posedge clk) begin
-    case(state)
+    case(cpu_state)
         state_idle: begin
             if (cache_ena == 1'b1) begin
                 cpu_state <= state_req;
@@ -134,12 +136,12 @@ always @(posedge clk) begin
         end
         state_wait_data_read: begin
             if (s_rvalid == 1'b1) begin
-                state <= state_wait_data_write;
+                cpu_state <= state_wait_data_write;
             end
         end
         state_wait_data_write: begin
             if (m_rready == 1'b1) begin
-                state <= state_idle;
+                cpu_state <= state_idle;
             end
         end
     endcase
