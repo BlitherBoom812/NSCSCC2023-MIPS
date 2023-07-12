@@ -1,14 +1,16 @@
 //~ `New testbench
 `timescale  1ns / 1ps        
 `include "../defines.v"
+
+`define LINE_OFFSET_WIDTH 6 // For inst_cache_fifo is 6 (2^6 Bytes = 64 Bytes = 16 words per line); For my_ICache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
+
 module tb_inst_cache_fifo();   
+
+// top parameters
+parameter [6:0] SEND_NUM = 15;
 
 // inst_cache_fifo Parameters
 parameter PERIOD      = 10  ;
-parameter IDLE        = 4'd0;
-parameter COMP_TAG    = 4'd1;
-parameter READ_MEM    = 4'h2;
-parameter WRITE_BACK  = 4'h3;
 
 // inst_cache_fifo Inputs
 reg   rst                                  = `RST_DISABLE ;
@@ -18,12 +20,12 @@ reg   m_arready                            = 0 ;
 reg   [31:0]  m_rdata                      = 0 ;
 reg   m_rlast                              = 0 ;
 reg   m_rvalid                             = 0 ;
-reg   [31:0]  s_araddr                     = 0 ;
+reg   [31:0]  s_araddr                     = 0 ;    // request addr from cpu
 reg   s_arvalid                            = 0 ;
 reg   flush                                = 0 ;
 
 // inst_cache_fifo Outputs
-wire  [31:0]  m_araddr                     ;
+wire  [31:0]  m_araddr                     ;    // request addr to ram
 wire  m_arvalid                            ;
 wire  m_rready                             ;
 wire  [31:0]  s_rdata                      ;
@@ -41,12 +43,7 @@ begin
     #(PERIOD*2) rst  =  `RST_DISABLE;
 end
 
-inst_cache_fifo #(
-    .IDLE       ( IDLE       ),
-    .COMP_TAG   ( COMP_TAG   ),
-    .READ_MEM   ( READ_MEM   ),
-    .WRITE_BACK ( WRITE_BACK ))
- u_inst_cache_fifo (
+inst_cache_fifo u_inst_cache_fifo (
     .rst                     ( rst               ),
     .clk                     ( clk               ),
     .cache_ena               ( cache_ena         ),
@@ -87,18 +84,16 @@ initial begin
     cpu_state = state_idle;
 end
 
-// read sequence: 0x00000000, 0x00000004, 0x00000008, 0x0000000C, 0x00000010, 0x00000014, 0x00000004, 0x00000014, 0x00000018
-
 task set_s_araddr();
     begin
         case(inst_req_count)
             0: s_araddr <= 32'h00000000;
             1: s_araddr <= 32'h00000004;
             2: s_araddr <= 32'h00000008;
-            3: s_araddr <= 32'h0000000C;
-            4: s_araddr <= 32'h00000010;
-            5: s_araddr <= 32'h00000014;
-            6: s_araddr <= 32'h00000004;
+            3: s_araddr <= 32'h0000004C;
+            4: s_araddr <= 32'h00000080;
+            5: s_araddr <= 32'h00000044;
+            6: s_araddr <= 32'h00000084;
             7: s_araddr <= 32'h00000014;
             8: s_araddr <= 32'h00000018;
             default: s_araddr <= 32'h00000000;
@@ -119,26 +114,22 @@ always @(posedge clk) begin
         case(cpu_state)
             state_idle: begin
                 s_arvalid <= 1'b0;
-                if (cache_ena == 1'b1) begin
-                    if (inst_req_count == 8) begin
-                        $display("fetch inst done");
-                        $finish;
-                    end else begin
-                        cpu_state <= state_req;
-                    end
+                if (inst_req_count == 9) begin
+                    $display("fetch inst done");
+                    $finish;
+                end else begin
+                    cpu_state <= state_req;
                 end
             end
             state_req: begin
-                if (cache_ena == 1'b1) begin
-                    s_arvalid <= 1'b1;
-                    set_s_araddr();
-                    cpu_state <= state_wait_inst_read;
-                end
+                s_arvalid <= 1'b1;
+                set_s_araddr();
+                cpu_state <= state_wait_inst_read;
             end
             state_wait_inst_read: begin
                 s_arvalid <= 1'b0;
                 if (s_rvalid == 1'b1) begin
-                    $display("fetch inst[%d]: %h", inst_req_count, s_rdata);
+                    $display("fetch inst[%h]: %h", s_araddr, s_rdata);
                     inst_req_count <= inst_req_count + 1;
                     cpu_state <= state_idle;
                 end
@@ -149,8 +140,8 @@ end
 
 // ram simulation
 reg [7:0] ram_state;
-reg [3:0] send_count; // send 8 words by default;
-
+reg [`LINE_OFFSET_WIDTH-1:0] send_count; 
+reg [31:0] m_araddr_reg;    // store the address of the current read request
 parameter [7:0] RAM_IDLE = 1;
 parameter [7:0] RAM_READ = 2;
 parameter [7:0] RAM_WRITE = 3;
@@ -178,17 +169,18 @@ always @(posedge clk) begin
                     m_arready <= 1'b1;
                     send_count <= 0;
                     ram_state <= RAM_READ;
+                    m_araddr_reg <= m_araddr;
                 end
             end
             RAM_READ: begin
                 if (m_arvalid == 1'b0) begin
                     m_arready <= 1'b0;
-                    m_rdata <= {28'hFEDCBA9, send_count};
-                    if (send_count == 4'h7) begin
+                    m_rdata <= {m_araddr_reg[31:`LINE_OFFSET_WIDTH], send_count << 2};
+                    if (send_count == SEND_NUM) begin
                         m_rlast <= 1'b1;
                         m_rvalid <= 1'b1;
                         send_count <= send_count + 1;
-                    end else if (send_count == 4'h8) begin
+                    end else if (send_count == SEND_NUM + 1) begin
                         m_rlast <= 1'b0;
                         m_rvalid <= 1'b0;
                         send_count <= 0;
