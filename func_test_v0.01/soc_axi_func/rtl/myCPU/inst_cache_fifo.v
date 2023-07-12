@@ -1,5 +1,6 @@
 // `include "defines.v"
-// module inst_cache_fifo(
+// module inst_cache_fifo
+// (
 //     input         rst            ,
 //     input         clk            ,
 //     input         cache_ena      ,

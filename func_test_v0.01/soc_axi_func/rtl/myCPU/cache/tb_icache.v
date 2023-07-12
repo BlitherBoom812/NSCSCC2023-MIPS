@@ -1,6 +1,6 @@
 //~ `New testbench
 `timescale  1ns / 1ps        
-
+`include "../defines.v"
 module tb_inst_cache_fifo();   
 
 // inst_cache_fifo Parameters
@@ -11,7 +11,7 @@ parameter READ_MEM    = 4'h2;
 parameter WRITE_BACK  = 4'h3;
 
 // inst_cache_fifo Inputs
-reg   rst                                  = 0 ;
+reg   rst                                  = `RST_DISABLE ;
 reg   clk                                  = 0 ;
 reg   cache_ena                            = 0 ;
 reg   m_arready                            = 0 ;
@@ -37,8 +37,8 @@ end
 
 initial
 begin
-    #(PERIOD*2) rst  =  1;
-    #(PERIOD*2) rst  =  0;
+    #(PERIOD*2) rst  =  `RST_ENABLE;
+    #(PERIOD*2) rst  =  `RST_DISABLE;
 end
 
 inst_cache_fifo #(
@@ -69,12 +69,6 @@ inst_cache_fifo #(
 // 1. verify testbench by connecting testbench to the original inst cache
 // 2. test the new inst cache by connecting testbench to the new inst cache
 
-initial
-begin
-
-    #(PERIOD * 1000) $finish();
-end
-
 // cpu simulation
 reg [3:0] inst_req_count;
 reg [2:0] cpu_state;
@@ -88,8 +82,9 @@ parameter[2:0] state_wait_data_write = 3'b101;
 initial begin
     cache_ena = 1;    
     inst_req_count = 0;
+    s_arvalid = 0;
+    flush = 0;
     cpu_state = state_idle;
-    $display("start fetch inst");
 end
 
 // read sequence: 0x00000000, 0x00000004, 0x00000008, 0x0000000C, 0x00000010, 0x00000014, 0x00000004, 0x00000014, 0x00000018
@@ -112,39 +107,44 @@ task set_s_araddr();
 endtask
 
 always @(posedge clk) begin
-    case(cpu_state)
-        state_idle: begin
-            if (cache_ena == 1'b1) begin
-                cpu_state <= state_req;
-            end
-        end
-        state_req: begin
-            if (cache_ena == 1'b1) begin
-                s_arvalid <= 1'b1;
-                set_s_araddr();
-                if (s_rvalid == 1'b1) begin
-                    cpu_state <= state_wait_data_read;
+    if (rst == `RST_ENABLE) begin
+        cache_ena <= 1;    
+        inst_req_count <= 0;
+        s_arvalid <= 0;
+        flush <= 0;
+        m_arready <= 0;
+        cpu_state <= state_idle;
+        $display("start fetch inst");
+    end else begin
+        case(cpu_state)
+            state_idle: begin
+                s_arvalid <= 1'b0;
+                if (cache_ena == 1'b1) begin
+                    if (inst_req_count == 8) begin
+                        $display("fetch inst done");
+                        $finish;
+                    end else begin
+                        cpu_state <= state_req;
+                    end
                 end
             end
-        end
-        state_wait_inst_read: begin
-            if (s_rvalid == 1'b1) begin
-                $display("fetch inst[%d]: %h", inst_req_count, s_rdata);
-                inst_req_count <= inst_req_count + 1;
-                cpu_state <= state_idle;
+            state_req: begin
+                if (cache_ena == 1'b1) begin
+                    s_arvalid <= 1'b1;
+                    set_s_araddr();
+                    cpu_state <= state_wait_inst_read;
+                end
             end
-        end
-        state_wait_data_read: begin
-            if (s_rvalid == 1'b1) begin
-                cpu_state <= state_wait_data_write;
+            state_wait_inst_read: begin
+                s_arvalid <= 1'b0;
+                if (s_rvalid == 1'b1) begin
+                    $display("fetch inst[%d]: %h", inst_req_count, s_rdata);
+                    inst_req_count <= inst_req_count + 1;
+                    cpu_state <= state_idle;
+                end
             end
-        end
-        state_wait_data_write: begin
-            if (m_rready == 1'b1) begin
-                cpu_state <= state_idle;
-            end
-        end
-    endcase
+        endcase
+    end
 end
 
 // ram simulation
@@ -157,39 +157,51 @@ parameter [7:0] RAM_WRITE = 3;
 
 initial begin
     ram_state = RAM_IDLE;
-    $display("start ram");
+    m_arready = 0;
+    m_rlast = 0;
+    m_rvalid = 0;
+    send_count = 0;
 end
 
 always @(posedge clk) begin
-    case(ram_state)
-        RAM_IDLE: begin
-            m_arready <= 1'b1;
-            if (m_arvalid == 1'b1) begin
-                send_count <= 0;
-                ram_state <= RAM_READ;
-            end
-        end
-        RAM_READ: begin
-            if (m_rready == 1'b1) begin
-                m_arready <= 1'b0;
-                m_rdata <= {28'hFEDCBA9, send_count};
-                if (send_count == 4'h6) begin
-                    m_rlast <= 1'b1;
-                    m_rvalid <= 1'b1;
-                    send_count <= send_count + 1;
-                end else if (send_count == 4'h7) begin
-                    m_rlast <= 1'b0;
-                    m_rvalid <= 1'b0;
+    if (rst == `RST_ENABLE) begin
+        ram_state <= RAM_IDLE;
+        m_arready <= 0;
+        m_rlast <= 0;
+        m_rvalid <= 0;
+        send_count <= 0;
+        $display("start ram");
+    end else begin
+        case(ram_state)
+            RAM_IDLE: begin
+                if (m_arvalid == 1'b1) begin
+                    m_arready <= 1'b1;
                     send_count <= 0;
-                    ram_state <= RAM_IDLE;
-                end else begin
-                    m_rlast <= 1'b0;
-                    m_rvalid <= 1'b1;
-                    send_count <= send_count + 1;
+                    ram_state <= RAM_READ;
                 end
             end
-        end
-    endcase 
+            RAM_READ: begin
+                if (m_arvalid == 1'b0) begin
+                    m_arready <= 1'b0;
+                    m_rdata <= {28'hFEDCBA9, send_count};
+                    if (send_count == 4'h7) begin
+                        m_rlast <= 1'b1;
+                        m_rvalid <= 1'b1;
+                        send_count <= send_count + 1;
+                    end else if (send_count == 4'h8) begin
+                        m_rlast <= 1'b0;
+                        m_rvalid <= 1'b0;
+                        send_count <= 0;
+                        ram_state <= RAM_IDLE;
+                    end else begin
+                        m_rlast <= 1'b0;
+                        m_rvalid <= 1'b1;
+                        send_count <= send_count + 1;
+                    end
+                end
+            end
+        endcase 
+    end
 end
 
 endmodule
