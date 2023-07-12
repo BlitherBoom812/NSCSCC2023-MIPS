@@ -2,7 +2,7 @@
 `timescale 1ns / 1ps
 `include "../defines.v"
 
-`define LINE_OFFSET_WIDTH 6 // For inst_cache_fifo is 6 (2^6 Bytes = 64 Bytes = 16 words per line); For my_ICache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
+`define LINE_OFFSET_WIDTH 5 // For inst_cache_fifo is 6 (2^6 Bytes = 64 Bytes = 16 words per line); For my_ICache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
 
 module tb_inst_cache_fifo ();
 
@@ -23,7 +23,6 @@ module tb_inst_cache_fifo ();
     reg  [31:0] s_araddr = 0;  // request addr from cpu
     reg         s_arvalid = 0;
     wire        flush;
-    // reg   flush                                = 0 ;
 
     // inst_cache_fifo Outputs
     wire [31:0] m_araddr;  // request addr to ram
