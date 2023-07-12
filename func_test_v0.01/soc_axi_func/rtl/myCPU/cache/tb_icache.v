@@ -64,14 +64,18 @@ inst_cache_fifo u_inst_cache_fifo (
 
 // goal: test icache
 // 1. verify testbench by connecting testbench to the original inst cache
+// 1.1 test basic cache function (ok)
+// 1.2 test flush function: if flush, the cpu req state goes back to turn_on
+// (p.s the 1.2 will be useful when optimizing the sram_interface. 我们可以区分热启动和冷启动，冷启动时损失一个周期，热启动时不损失周期。)
 // 2. test the new inst cache by connecting testbench to the new inst cache
 
 // cpu simulation
 reg [3:0] inst_req_count;
 reg [2:0] cpu_state;
+integer inst_fetch_time;
 
-parameter[2:0] state_idle = 3'b00;
-parameter[2:0] state_req = 3'b010;
+parameter[2:0] state_turn_on = 3'b00;   // state from cool start
+parameter[2:0] state_req = 3'b010;  // looping for request inst
 parameter[2:0] state_wait_inst_read = 3'b011;
 parameter[2:0] state_wait_data_read = 3'b100;
 parameter[2:0] state_wait_data_write = 3'b101;
@@ -81,7 +85,8 @@ initial begin
     inst_req_count = 0;
     s_arvalid = 0;
     flush = 0;
-    cpu_state = state_idle;
+    cpu_state = state_turn_on;
+    inst_fetch_time = 0;
 end
 
 task set_s_araddr();
@@ -108,32 +113,35 @@ always @(posedge clk) begin
         s_arvalid <= 0;
         flush <= 0;
         m_arready <= 0;
-        cpu_state <= state_idle;
+        cpu_state <= state_turn_on;
+        inst_fetch_time <= 0;
         $display("start fetch inst");
     end else begin
         case(cpu_state)
-            state_idle: begin
-                s_arvalid <= 1'b0;
+            state_turn_on: begin
+                s_arvalid <= 1'b1;
+                cpu_state <= state_req;
+            end
+            state_req: begin
                 if (inst_req_count == 9) begin
                     $display("fetch inst done");
                     $finish;
                 end else begin
-                    cpu_state <= state_req;
+                    if (s_rvalid == 1'b1) begin
+                        $display("fetch inst[%h]: %h, time consuming: %d cycles", s_araddr, s_rdata, inst_fetch_time);
+                        inst_req_count <= inst_req_count + 1;
+                        cpu_state <= state_req;
+                        inst_fetch_time <= 0;
+                        set_s_araddr();
+                        s_arvalid <= 1'b1;
+                    end else begin
+                        if (inst_req_count > 0)
+                            s_arvalid <= 1'b0;
+                        inst_fetch_time <= inst_fetch_time + 1;
+                    end
                 end
             end
-            state_req: begin
-                s_arvalid <= 1'b1;
-                set_s_araddr();
-                cpu_state <= state_wait_inst_read;
-            end
-            state_wait_inst_read: begin
-                s_arvalid <= 1'b0;
-                if (s_rvalid == 1'b1) begin
-                    $display("fetch inst[%h]: %h", s_araddr, s_rdata);
-                    inst_req_count <= inst_req_count + 1;
-                    cpu_state <= state_idle;
-                end
-            end
+
         endcase
     end
 end
