@@ -22,7 +22,8 @@ reg   m_rlast                              = 0 ;
 reg   m_rvalid                             = 0 ;
 reg   [31:0]  s_araddr                     = 0 ;    // request addr from cpu
 reg   s_arvalid                            = 0 ;
-reg   flush                                = 0 ;
+wire flush;
+// reg   flush                                = 0 ;
 
 // inst_cache_fifo Outputs
 wire  [31:0]  m_araddr                     ;    // request addr to ram
@@ -70,9 +71,10 @@ inst_cache_fifo u_inst_cache_fifo (
 // 2. test the new inst cache by connecting testbench to the new inst cache
 
 // cpu simulation
-reg [3:0] inst_req_count;
+reg [3:0] inst_req_count;   // count the number of inst request now
 reg [2:0] cpu_state;
-integer inst_fetch_time;
+integer inst_fetch_cycle;    // calculate the cycles cost by one inst.
+reg flush_done = 0;
 
 parameter[2:0] state_turn_on = 3'b00;   // state from cool start
 parameter[2:0] state_req = 3'b010;  // looping for request inst
@@ -80,29 +82,41 @@ parameter[2:0] state_wait_inst_read = 3'b011;
 parameter[2:0] state_wait_data_read = 3'b100;
 parameter[2:0] state_wait_data_write = 3'b101;
 
+assign flush = s_arvalid && (s_araddr == 32'hffff_ffff);
+
 initial begin
     cache_ena = 1;    
     inst_req_count = 0;
     s_arvalid = 0;
-    flush = 0;
     cpu_state = state_turn_on;
-    inst_fetch_time = 0;
+    inst_fetch_cycle = 0;
+    flush_done = 0;
 end
-
-task set_s_araddr();
+// assume that 0xffff_ffff means flush for a cycle.
+task set_inst_addr();
     begin
         case(inst_req_count)
-            0: s_araddr <= 32'h00000000;
-            1: s_araddr <= 32'h00000004;
-            2: s_araddr <= 32'h00000008;
-            3: s_araddr <= 32'h0000004C;
-            4: s_araddr <= 32'h00000080;
-            5: s_araddr <= 32'h00000044;
-            6: s_araddr <= 32'h00000084;
-            7: s_araddr <= 32'h00000014;
-            8: s_araddr <= 32'h00000018;
-            default: s_araddr <= 32'h00000000;
+            0: s_araddr <= 32'hffff_ffff;
+            1: s_araddr <= 32'h0000_0004;
+            2: s_araddr <= 32'h0000_0008;
+            3: s_araddr <= 32'h0000_004C;
+            4: s_araddr <= 32'h0000_0080;
+            5: s_araddr <= 32'h0000_0044;
+            6: s_araddr <= 32'hffff_ffff;
+            7: s_araddr <= 32'h0000_0014;
+            8: s_araddr <= 32'h0000_0018;
+            default: s_araddr <= 32'h0000_0000;
         endcase
+            inst_req_count <= inst_req_count + 1;
+            inst_fetch_cycle <= 0;
+    end
+endtask
+
+task on_flush();
+    begin
+        $display("fetch inst[%h]: flush is on, time consuming: %d cycles", s_araddr, inst_fetch_cycle);
+        s_arvalid <= 1'b0;
+        flush_done <= 1'b1;
     end
 endtask
 
@@ -111,37 +125,52 @@ always @(posedge clk) begin
         cache_ena <= 1;    
         inst_req_count <= 0;
         s_arvalid <= 0;
-        flush <= 0;
         m_arready <= 0;
         cpu_state <= state_turn_on;
-        inst_fetch_time <= 0;
+        inst_fetch_cycle <= 0;
+        flush_done <= 0;
         $display("start fetch inst");
     end else begin
+        inst_fetch_cycle <= inst_fetch_cycle + 1;
         case(cpu_state)
             state_turn_on: begin
-                s_arvalid <= 1'b1;
-                cpu_state <= state_req;
+                if (flush && (!flush_done)) begin
+                    on_flush();
+                    cpu_state <= state_turn_on;
+                end else if(flush_done) begin
+                    flush_done <= 1'b0;
+                    set_inst_addr();
+                    s_arvalid <= 1'b1;
+                    cpu_state <= state_req;
+                end else begin
+                    set_inst_addr();
+                    s_arvalid <= 1'b1;
+                    cpu_state <= state_req;
+                end
             end
             state_req: begin
-                if (inst_req_count == 9) begin
+                if (inst_req_count == 4'd10) begin
                     $display("fetch inst done");
                     $finish;
                 end else begin
-                    if (s_rvalid == 1'b1) begin
-                        $display("fetch inst[%h]: %h, time consuming: %d cycles", s_araddr, s_rdata, inst_fetch_time);
-                        inst_req_count <= inst_req_count + 1;
-                        cpu_state <= state_req;
-                        inst_fetch_time <= 0;
-                        set_s_araddr();
-                        s_arvalid <= 1'b1;
+                    if (flush && (!flush_done)) begin
+                        on_flush();
+                        cpu_state <= state_turn_on;
                     end else begin
-                        if (inst_req_count > 0)
-                            s_arvalid <= 1'b0;
-                        inst_fetch_time <= inst_fetch_time + 1;
+                        if (s_rvalid == 1'b1) begin
+                            $display("fetch inst[%h]: %h, time consuming: %d cycles", s_araddr, s_rdata, inst_fetch_cycle);
+                            cpu_state <= state_req;
+                            inst_fetch_cycle <= 0;
+                            set_inst_addr();
+                            s_arvalid <= 1'b1;
+                        end else begin
+                            if (inst_fetch_cycle > 0) begin
+                                s_arvalid <= 1'b0;
+                            end
+                        end
                     end
                 end
             end
-
         endcase
     end
 end
