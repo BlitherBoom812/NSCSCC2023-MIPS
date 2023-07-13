@@ -42,9 +42,12 @@ parameter IDLE = 4'd0;  // wait addr and request
 parameter COMP_TAG = 4'd1;   // compare tag between addr and tagv & update lru
 parameter READ_MEM = 4'h2;  // read new block from mem to addr, and write new block inst cache
 parameter WRITE_BACK = 4'h3;    // update tagv and lru & send missing data back to cpu
+
+//-----------------------signal definition-----------------------//
+// state
 reg [3:0] current_state = IDLE;
-//-----------------------memory definition------------------------//
-// tag & v ram
+
+// tag ram
 // depth = 128, width = 20, 2 instances
 // 19:0 is tag
 wire tag_wen [1:0];
@@ -52,6 +55,36 @@ wire [6:0] tag_addr [1:0];  // index(0~127)
 wire [19:0] tag_wdata [1:0];    // tag write data
 wire [19:0] tag_rdata [1:0];    // tag read data
 genvar i;
+
+// v and lru
+reg [127:0] v [1:0];// v(0~127, 2 way)
+reg [127:0] lru;    // lru(0~127)
+
+// data ram
+// 128 sets, 2 way/set, 8 bank/way => 16 bank/set.
+// depth = 128, width = 32, 16 instances.
+wire [3:0] data_wen [1:0][7:0]; // control 4 bytes wen
+wire [6:0] data_addr [1:0][7:0];  // index(0~127)
+wire [31:0] data_wdata [1:0][7:0];    // data write data
+wire [31:0] data_rdata [1:0][7:0];    // data read data
+genvar j, k;
+
+// useful signal
+wire [1:0] hit;
+wire replaced_way;
+wire [31:0] addr_req;
+wire [19:0] tag_req;
+wire [6:0] index_req;
+wire [2:0] offset_req;
+
+reg [31:0] addr_req_r;
+reg m_arvalid_r;
+reg cached;
+reg [2:0] read_count = 3'd0;    // transfer 8 words(banks) per time
+reg [31:0] data_at_write_back = 32'h0000_0000;
+
+//-----------------------memory definition------------------------//
+// tag ram
 generate
     for (i = 0;i < 2;i = i + 1) begin: tagv_ram_gen
         tag_ram tag_ram_inst(
@@ -65,17 +98,7 @@ generate
     end
 endgenerate
 
-reg [127:0] v [1:0];// v(0~127, 2 way)
-reg [127:0] lru;    // lru(0~127)
-
 // data ram
-// 128 sets, 2 way/set, 8 bank/way => 16 bank/set.
-// depth = 128, width = 32, 16 instances.
-wire [3:0] data_wen [1:0][7:0]; // control 4 bytes wen
-wire [6:0] data_addr [1:0][7:0];  // index(0~127)
-wire [31:0] data_wdata [1:0][7:0];    // data write data
-wire [31:0] data_rdata [1:0][7:0];    // data read data
-genvar j, k;
 generate
     for (j = 0;j < 2;j = j + 1) begin: way_ram_gen
         for (k = 0;k < 8;k = k + 1) begin: bank_ram_gen
@@ -91,16 +114,13 @@ generate
     end
 endgenerate
 
-//-----------------------signal definition-----------------------//
-wire [1:0] hit;
-wire replaced_way;
-reg [31:0] addr_req;
-// reg s_rvalid_r;
-reg m_arvalid_r;
-reg m_rready_r;
 //-----------------------state transition------------------------//
-reg [2:0] read_count = 3'd0;    // transfer 8 words(banks) per time
-reg [31:0] data_at_write_back = 32'h0000_0000;
+task set_addr_req_r();
+    begin
+        addr_req_r <= s_araddr;
+    end
+endtask
+
 integer index;
 always @(posedge clk) begin
     if(rst == `RST_ENABLE) begin
@@ -111,10 +131,10 @@ always @(posedge clk) begin
 
         lru <= {128{1'b0}};
 
-        addr_req <= 32'h0000_0000;
+        addr_req_r <= 32'h0000_0000;
 
         m_arvalid_r <= 1'b0;
-        m_rready_r <= 1'b0;
+        cached <= 1'b0;
 
         read_count <= 3'd0;
         data_at_write_back <= 32'h0000_0000;
@@ -124,8 +144,16 @@ always @(posedge clk) begin
             IDLE: begin
                 if(!flush) begin
                     if (s_arvalid == 1'b1) begin
-                        addr_req <= s_araddr;
-                        current_state <= COMP_TAG;
+                        if (cache_ena) begin
+                            current_state <= COMP_TAG;
+                        end else begin
+                            current_state <= READ_MEM;
+                            read_count <= 3'd0;
+                            m_arvalid_r <= 1'b1;
+                        end
+                        // addr_req_r <= s_araddr;
+                        set_addr_req_r();
+                        cached <= cache_ena;
                     end
                 end
             end
@@ -133,13 +161,13 @@ always @(posedge clk) begin
             COMP_TAG: begin
                 if (|hit) begin
                     current_state <= IDLE;
-                    lru[addr_req[11:5]] <= (hit[0] == 1'b1) ? 1'b0 : 1'b1;
+                    lru[addr_req_r[11:5]] <= (hit[0] == 1'b1) ? 1'b0 : 1'b1;
                 end
                 else begin
+                    lru[addr_req_r[11:5]] <= ~lru[addr_req_r[11:5]];
                     current_state <= READ_MEM;
                     read_count <= 3'd0;
                     m_arvalid_r <= 1'b1;
-                    m_rready_r <= 1'b1;
                 end
             end
 
@@ -148,26 +176,34 @@ always @(posedge clk) begin
                 if (m_arready == 1'b1) begin
                     m_arvalid_r <= 1'b0;
                 end
-                if (m_rvalid) begin
-                    read_count <= read_count + 1'b1;
-                    // if axi outputs data needed, then put it into data_at_write_back, and send to s_rdata at WRITE_BACK
-                    if (read_count == addr_req[4:2]) begin
+                if (cached) begin
+                    if (m_rvalid) begin
+                        read_count <= read_count + 1'b1;
+                        // if axi outputs data needed, then put it into data_at_write_back, and send to s_rdata at WRITE_BACK
+                        if (read_count == addr_req_r[4:2]) begin
+                            data_at_write_back <= m_rdata;
+                        end
+                        // write data to data ram (see assign)
+                    end
+                    if (m_rlast == 1'b1) begin 
+                        current_state <= WRITE_BACK;
+                        read_count <= 3'b0;
+                    end
+                end else begin
+                    if (m_rvalid && m_rlast) begin
+                        current_state <= WRITE_BACK;
                         data_at_write_back <= m_rdata;
                     end
-                    // write data to data ram (see assign)
                 end
-                if (m_rlast == 1'b1) begin 
-                    current_state <= WRITE_BACK;
-                    read_count <= 3'b0;
-                end
+
             end
 
             // update tagv & send missing data back to cpu
             WRITE_BACK: begin
                 current_state <= IDLE;
                 // update tagv
-                begin
-                    v[hit] <= v[hit] | (1 << addr_req[11:5]);
+                if (cached) begin
+                    v[hit] <= v[hit] | (1 << addr_req_r[11:5]);
                 end
             end
             default: ;
@@ -177,29 +213,38 @@ end
 
 //-----------------------wire assign------------------------//
 // don't know when the axi_ram will reply with arready=1, so have a reg to wait for that
-assign replaced_way = lru[addr_req[11:5]];
 assign m_arvalid = m_arvalid_r;
 assign m_rready = 1'b1;
+
+// calculate tag, index, offset
+assign addr_req = (current_state == IDLE) ? s_araddr : addr_req_r;
+assign tag_req = addr_req[31:12];
+assign index_req = addr_req[11:5];
+assign offset_req = addr_req[4:2];
+
+// indicate which way to be replaced
+assign replaced_way = lru[index_req];
+
+// used for READ_MEM
+// read from memory, offset width = 5 bits.
+assign m_araddr = (cached) ? {tag_req, index_req, {5{1'b0}}} : addr_req;
 
 generate
 for(i = 0;i < 2;i = i + 1) begin: gen_u1
     // used for IDLE
-    assign tag_addr[i] = s_araddr[11:5];
+    assign tag_addr[i] = index_req;
     // used for COMP_TAG
-    assign hit[i] = (tag_rdata[i] == addr_req[31:12]) && (v[i][addr_req[11:5]] == 1'b1);
-    // used for READ_MEM
-    // read from memory, offset width = 5 bits.
-    assign m_araddr = {addr_req[31:5], {5{1'b0}}};
+    assign hit[i] = ((tag_rdata[i] == tag_req) && (v[i][index_req] == 1'b1)) ? 1'b1 : 1'b0;
+
     // write for memory
     for(j = 0;j < 8;j = j + 1) begin
-        assign data_wen[i][j] = ((m_rvalid) && (replaced_way == i) && (read_count == j)) ? 4'b1111 : 4'b0000;
+        assign data_wen[i][j] = ((cached) && (m_rvalid) && (replaced_way == i) && (read_count == j)) ? 4'b1111 : 4'b0000;
         assign data_wdata[i][j] = m_rdata;
-        assign data_addr[i][j] = addr_req[11:5];
+        assign data_addr[i][j] = index_req;
     end
     // used for WRITE_BACK
-    assign tag_wen[i] = ((current_state == WRITE_BACK) && (replaced_way == i));
-    assign tag_wdata[i] = addr_req[31:12];
-    assign tag_addr[i] = addr_req[11:5];
+    assign tag_wen[i] = ((cached) && (current_state == WRITE_BACK) && (replaced_way == i));
+    assign tag_wdata[i] = tag_req;
 end
 endgenerate
 
@@ -218,9 +263,9 @@ assign s_rvalid =
 assign s_rdata = 
     (current_state == COMP_TAG && (|hit)) ?
         ((hit[0] == 1'b1) ? 
-            data_rdata[0][addr_req[4:2]]
+            data_rdata[0][offset_req]
         :
-            data_rdata[1][addr_req[4:2]])
+            data_rdata[1][offset_req])
     :
         ((current_state == WRITE_BACK) ? 
             data_at_write_back

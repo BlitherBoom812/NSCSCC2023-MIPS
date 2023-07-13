@@ -15,7 +15,7 @@ module tb_inst_cache_fifo ();
     // inst_cache_fifo Inputs
     reg         rst = `RST_DISABLE;
     reg         clk = 0;
-    reg         cache_ena = 0;
+    wire        cache_ena;
     reg         m_arready = 0;
     reg  [31:0] m_rdata = 0;
     reg         m_rlast = 0;
@@ -61,13 +61,16 @@ module tb_inst_cache_fifo ();
     );
 
     // goal: test icache
-    // 1. verify testbench by connecting testbench to the original inst cache
+    // 1. verify testbench correctness (ok)
     // 1.1 test basic cache function (ok)
-    // 1.2 test flush function: if flush, the cpu req state goes back to turn_on
+    // 1.2 test flush function: if flush, the cpu req state goes back to turn_on(ok)
     // (p.s the 1.2 will be useful when optimizing the sram_interface. 我们可以区分热启动和冷启动，冷启动时损失一个周期，热启动时不损失周期。)
-    // 1.3 测试行替换功能
-    // 2. test the new inst cache by connecting testbench to the new inst cache
-
+    // 1.3 测试行替换功能(ok)
+    // 2. test the new inst cache
+    // 2.1 test basic cache function (ok)
+    // 2.2 test cache_ena (ok)
+    // 2.3 eliminate x & z (ok);
+    // 2.4 bug: 7th inst error!. outputs 32'hf0000054. but 8th is right. reason: the problem of addr_req_r and s_araddr.
     // cpu simulation
     reg     [3:0] inst_req_count;  // count the number of inst request now
     reg     [2:0] cpu_state;
@@ -80,10 +83,10 @@ module tb_inst_cache_fifo ();
     parameter [2:0] state_wait_data_read = 3'b100;
     parameter [2:0] state_wait_data_write = 3'b101;
 
-    assign flush = s_arvalid && (s_araddr == 32'hffff_ffff);
+    assign cache_ena = s_araddr[31];
+    assign flush     = s_arvalid && (s_araddr == 32'hffff_ffff);
 
     initial begin
-        cache_ena        = 1;
         inst_req_count   = 0;
         s_arvalid        = 0;
         cpu_state        = state_turn_on;
@@ -94,16 +97,16 @@ module tb_inst_cache_fifo ();
     task set_inst_addr();
         begin
             case (inst_req_count)
-                0: s_araddr <= 32'h0000_0000;
-                1: s_araddr <= 32'h0000_0004;
-                2: s_araddr <= 32'h0000_0008;
-                3: s_araddr <= 32'h0000_000C;
-                4: s_araddr <= 32'h0000_0040;
-                5: s_araddr <= 32'h0000_0044;
+                0: s_araddr <= 32'hf000_0000;
+                1: s_araddr <= 32'hf000_0004;
+                2: s_araddr <= 32'hf000_0008;
+                3: s_araddr <= 32'hf000_000C;
+                4: s_araddr <= 32'hf000_0040;
+                5: s_araddr <= 32'hf000_0044;
                 6: s_araddr <= 32'hffff_ffff;
-                7: s_araddr <= 32'hD000_0014;
-                8: s_araddr <= 32'hA000_0018;
-                default: s_araddr <= 32'h0000_0000;
+                7: s_araddr <= 32'hf000_0014;
+                8: s_araddr <= 32'hf000_0018;
+                default: s_araddr <= 32'hf000_0000;
             endcase
             inst_req_count   <= inst_req_count + 1;
             inst_fetch_cycle <= 0;
@@ -120,7 +123,6 @@ module tb_inst_cache_fifo ();
 
     always @(posedge clk) begin
         if (rst == `RST_ENABLE) begin
-            cache_ena        <= 1;
             inst_req_count   <= 0;
             s_arvalid        <= 0;
             m_arready        <= 0;
