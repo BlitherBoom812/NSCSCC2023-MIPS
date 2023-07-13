@@ -1,3 +1,5 @@
+`include "defines.v"
+
 module inst_cache_fifo(
     input         rst            ,
     input         clk            ,
@@ -101,7 +103,7 @@ reg [2:0] read_count = 3'd0;    // transfer 8 words(banks) per time
 reg [31:0] data_at_write_back = 32'h0000_0000;
 integer index;
 always @(posedge clk) begin
-    if(rst) begin
+    if(rst == `RST_ENABLE) begin
         current_state <= IDLE;
         for (index = 0;index < 2;index = index + 1) begin
             v[index] <= {128{1'b0}};
