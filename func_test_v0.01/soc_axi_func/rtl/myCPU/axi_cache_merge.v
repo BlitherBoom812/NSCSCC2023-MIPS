@@ -1,4 +1,6 @@
 // 将inst_cache和data_cache的读端口合并为一个axi接口
+`include "cache_config.v"
+
 module axi_cache_merge (
     input         inst_cache_ena,
     input         data_cache_ena,
@@ -24,7 +26,7 @@ module axi_cache_merge (
     //ar
     output [ 3:0] arid,
     output [31:0] araddr,
-    output [ 7:0] arlen,
+    output [ 4:0] arlen,
     output [ 2:0] arsize,
     output [ 1:0] arburst,
     output [ 1:0] arlock,
@@ -48,7 +50,7 @@ begin
     else get_arlen = 8'h00; 
 end
 endfunction*/
-    assign arlen        = inst_ren ? (inst_cache_ena ? 8'h0f : 8'h00) : (data_ren ? (data_cache_ena ? 8'h0f : 8'h00) : 8'h00);
+    assign arlen        = inst_ren ? (inst_cache_ena ? `INST_BURST_NUM : 8'h00) : (data_ren ? (data_cache_ena ? 8'h0f : 8'h00) : 8'h00);
     assign arid         = 4'b0000;
     assign arsize       = 3'b010;
     assign arburst      = inst_ren ? (inst_cache_ena ? 2'b01 : 2'b00) : (data_ren ? (data_cache_ena ? 2'b01 : 2'b00) : 2'b00);
