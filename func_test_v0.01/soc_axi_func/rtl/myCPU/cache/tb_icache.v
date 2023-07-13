@@ -3,11 +3,11 @@
 `include "../defines.v"
 
 `define LINE_OFFSET_WIDTH 5 // For inst_cache_fifo is 6 (2^6 Bytes = 64 Bytes = 16 words per line); For my_ICache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
-
+`define SEND_NUM 8 // For inst_cache_fifo is 8; For my_ICache, is 4
 module tb_inst_cache_fifo ();
 
     // top parameters
-    parameter [6:0] SEND_NUM = 15;
+    parameter [6:0] SEND_NUM = `SEND_NUM;
 
     // inst_cache_fifo Parameters
     parameter PERIOD = 10;
@@ -65,6 +65,7 @@ module tb_inst_cache_fifo ();
     // 1.1 test basic cache function (ok)
     // 1.2 test flush function: if flush, the cpu req state goes back to turn_on
     // (p.s the 1.2 will be useful when optimizing the sram_interface. 我们可以区分热启动和冷启动，冷启动时损失一个周期，热启动时不损失周期。)
+    // 1.3 测试行替换功能
     // 2. test the new inst cache by connecting testbench to the new inst cache
 
     // cpu simulation
@@ -93,15 +94,15 @@ module tb_inst_cache_fifo ();
     task set_inst_addr();
         begin
             case (inst_req_count)
-                0: s_araddr <= 32'hffff_ffff;
+                0: s_araddr <= 32'h0000_0000;
                 1: s_araddr <= 32'h0000_0004;
                 2: s_araddr <= 32'h0000_0008;
-                3: s_araddr <= 32'h0000_004C;
-                4: s_araddr <= 32'h0000_0080;
+                3: s_araddr <= 32'h0000_000C;
+                4: s_araddr <= 32'h0000_0040;
                 5: s_araddr <= 32'h0000_0044;
                 6: s_araddr <= 32'hffff_ffff;
-                7: s_araddr <= 32'h0000_0014;
-                8: s_araddr <= 32'h0000_0018;
+                7: s_araddr <= 32'hD000_0014;
+                8: s_araddr <= 32'hA000_0018;
                 default: s_araddr <= 32'h0000_0000;
             endcase
             inst_req_count   <= inst_req_count + 1;
