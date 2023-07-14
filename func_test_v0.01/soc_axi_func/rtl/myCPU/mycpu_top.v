@@ -218,7 +218,7 @@ wire        data_cache_bridge_rlast;
 wire        data_cache_bridge_rvalid;
 wire        data_cache_bridge_rready;
 
-inst_cache_fifo  inst_cache_fifo_module
+inst_cache  inst_cache_module
 (
 .rst            (aresetn),
 .clk            (aclk),

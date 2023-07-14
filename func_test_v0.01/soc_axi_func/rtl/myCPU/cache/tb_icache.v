@@ -2,17 +2,17 @@
 `timescale 1ns / 1ps
 `include "defines.vh"
 
-`define LINE_OFFSET_WIDTH 5 // For inst_cache_fifo is 6 (2^6 Bytes = 64 Bytes = 16 words per line); For my_ICache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
-`define SEND_NUM 8 // For inst_cache_fifo is 8; For my_ICache, is 4
-module tb_inst_cache_fifo ();
+`define LINE_OFFSET_WIDTH 5 // For inst_cache is 6 (2^6 Bytes = 64 Bytes = 16 words per line); For my_ICache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
+`define SEND_NUM 8 // For inst_cache is 8; For my_ICache, is 4
+module tb_inst_cache ();
 
     // top parameters
     parameter [6:0] SEND_NUM = `SEND_NUM;
 
-    // inst_cache_fifo Parameters
+    // inst_cache Parameters
     parameter PERIOD = 10;
 
-    // inst_cache_fifo Inputs
+    // inst_cache Inputs
     reg         rst = `RST_DISABLE;
     reg         clk = 0;
     wire        cache_ena;
@@ -24,7 +24,7 @@ module tb_inst_cache_fifo ();
     reg         s_arvalid = 0;
     wire        flush;
 
-    // inst_cache_fifo Outputs
+    // inst_cache Outputs
     wire [31:0] m_araddr;  // request addr to ram
     wire        m_arvalid;
     wire        m_rready;
@@ -41,7 +41,7 @@ module tb_inst_cache_fifo ();
         #(PERIOD * 2) rst = `RST_DISABLE;
     end
 
-    inst_cache_fifo u_inst_cache_fifo (
+    inst_cache u_inst_cache (
         .rst      (rst),
         .clk      (clk),
         .cache_ena(cache_ena),
