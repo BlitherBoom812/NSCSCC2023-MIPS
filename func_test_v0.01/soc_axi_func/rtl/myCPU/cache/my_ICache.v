@@ -1,6 +1,6 @@
 `include "defines.vh"
 
-module inst_cache_fifo(
+module inst_cache(
     input         rst            ,
     input         clk            ,
     input         cache_ena      ,
