@@ -1,4 +1,4 @@
-`include "defines.v"
+`include "defines.vh"
 module data_cache_fifo(
     input         clk            ,
     input         rst            ,

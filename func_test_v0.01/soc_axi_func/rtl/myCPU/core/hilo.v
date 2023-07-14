@@ -1,4 +1,4 @@
-`include "defines.v"
+`include "defines.vh"
 module hilo(
 input  wire                  clk,
 input  wire                  rst,

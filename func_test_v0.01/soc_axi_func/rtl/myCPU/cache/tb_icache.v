@@ -1,6 +1,6 @@
 //~ `New testbench
 `timescale 1ns / 1ps
-`include "../defines.v"
+`include "defines.vh"
 
 `define LINE_OFFSET_WIDTH 5 // For inst_cache_fifo is 6 (2^6 Bytes = 64 Bytes = 16 words per line); For my_ICache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
 `define SEND_NUM 8 // For inst_cache_fifo is 8; For my_ICache, is 4

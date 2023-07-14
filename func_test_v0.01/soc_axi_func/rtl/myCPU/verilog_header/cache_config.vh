@@ -1,0 +1,1 @@
+`define INST_BURST_NUM 8'h7

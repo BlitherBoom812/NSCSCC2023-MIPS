@@ -1,4 +1,4 @@
-`include "defines.v"
+`include "defines.vh"
 module cp0
 (
 input wire                   clk,

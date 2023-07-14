@@ -328,59 +328,7 @@ axi_cache_merge axi_cache_merge_module
 end
 
 `else 
-    // main
-    parameter write_prepare = 0;
-    parameter write = 1;
-    parameter read_prepare = 2;
-    parameter read = 3;
-    parameter main_end = 4;
 
-    `include "axi_tasks.v"
-
-    reg [7:0] main_state = write_prepare;
-    reg [31:0] main_read_data = 32'h0000_0000;
-
-    begin
-        always @(posedge aclk) begin
-            case (main_state)
-                write_prepare: begin
-                    axi_state <= write_data_prepare;
-                    my_awaddr <= 32'h0000_0000;
-                    my_wdata <= 32'h1234_5678;
-                    main_state <= write;
-                end
-                write: begin
-                    if (axi_state == write_data_wait) begin
-                        my_wdata <= my_wdata + 1;
-                    end
-                    axi_write_data();
-                    if (axi_state == write_data_response) begin
-                  
-                        main_state <= read_prepare;
-                    end
-                end
-                read_prepare: begin
-                    axi_state <= read_data_prepare;  
-                    my_araddr <= 32'h0000_0000;
-                    main_state <= read;
-                end
-                read: begin
-                    axi_read_data();
-                    if (axi_state == read_data_wait) begin
-                        if (rvalid == 1'b1) begin
-                            $display("main_read_data: %h", rdata);
-                        end
-                    end else if (axi_state == read_data_finish) begin
-                        main_state <= main_end;
-                    end 
-                end
-                main_end:
-                    ;
-                default: 
-                    ;
-            endcase
-        end
-    end
 `endif
 
 endmodule

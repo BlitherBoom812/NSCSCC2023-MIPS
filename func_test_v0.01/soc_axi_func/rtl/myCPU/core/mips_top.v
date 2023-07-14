@@ -1,4 +1,4 @@
-`include "defines.v"
+`include "defines.vh"
 
 module mips_top(
     input   wire        clk,

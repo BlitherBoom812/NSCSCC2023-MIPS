@@ -1,4 +1,4 @@
-`include "defines.v"
+`include "defines.vh"
 module id(
 input  wire                   rst,
 input  wire [`INST_BUS]       pc_i,          

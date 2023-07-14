@@ -1,4 +1,4 @@
-`include "defines.v"
+`include "defines.vh"
 module ex_mem(
     input   wire                    rst,
     input   wire                    clk,
