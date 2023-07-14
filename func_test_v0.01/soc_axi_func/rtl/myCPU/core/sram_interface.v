@@ -1,4 +1,4 @@
-`include "defines.v"
+`include "defines.vh"
 
 module sram_interface(
     input wire          clk,

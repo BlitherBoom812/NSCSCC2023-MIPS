@@ -1,4 +1,4 @@
-`include "defines.v"
+`include "defines.vh"
 module mem(
     input   wire                    rst,
     input   wire[`INST_ADDR_BUS]    pc_i,

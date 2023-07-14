@@ -1,5 +1,5 @@
 // 将inst_cache和data_cache的读端口合并为一个axi接口
-`include "cache_config.v"
+`include "cache_config.vh"
 
 module axi_cache_merge (
     input         inst_cache_ena,

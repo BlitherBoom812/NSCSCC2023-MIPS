@@ -1,4 +1,4 @@
-`include "defines.v"
+`include "defines.vh"
 // ram module just 4KB
 module ram(
     input wire[3:0] ram_write_select_i,
