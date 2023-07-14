@@ -3,7 +3,7 @@
 
 ### 2023/07/03
 
-原始版本，参考![bitmips2019](https://github.com/Silverster98/bitmips2019)
+原始版本，参考[bitmips2019](https://github.com/Silverster98/bitmips2019)
 
 ### 2023/07/14
 
