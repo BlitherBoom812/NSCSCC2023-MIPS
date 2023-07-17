@@ -1,98 +1,135 @@
+`timescale 1ns / 1ps
+
 `include "defines.vh"
+
 module ex_mem(
-    input   wire                    rst,
-    input   wire                    clk,
-    input   wire                    exception,
-    input   wire[3:0]               stall,
-    input   wire[`INST_ADDR_BUS]    exe_pc,
-    input   wire[`ALUOP_BUS]        exe_aluop,
-    input   wire                    exe_now_in_delayslot,
-    input   wire[`EXCEP_TYPE_BUS]   exe_exception_type,
-    input   wire                    exe_regfile_write_enable,
-    input   wire                    exe_ram_write_enable,
-    input   wire                    exe_hi_write_enable,
-    input   wire                    exe_lo_write_enable,
-    input   wire                    exe_cp0_write_enable,
-    input   wire[`GPR_ADDR_BUS]     exe_regfile_write_addr,
-    input   wire[`CP0_ADDR_BUS]     exe_cp0_write_addr,
-    input   wire[`GPR_BUS]          exe_alu_data,
-    input   wire[`GPR_BUS]          exe_ram_write_data,
-    input   wire[`GPR_BUS]          exe_hi_write_data,
-    input   wire[`GPR_BUS]          exe_lo_write_data,
-    input   wire[`GPR_BUS]          exe_cp0_write_data,
-    input   wire                    exe_mem_to_reg,
+    input   wire        clk,
+    input   wire        rst,
+    input   wire        exception,
+    input   wire[3:0]   stall,
     
-    output  reg[`INST_ADDR_BUS]     mem_pc,
-    output  reg[`ALUOP_BUS]         mem_aluop,
-    output  reg                     mem_now_in_delayslot,
-    output  reg[`EXCEP_TYPE_BUS]    mem_exception_type,
-    output  reg                     mem_regfile_write_enable,
-    output  reg                     mem_ram_write_enable,
-    output  reg                     mem_hi_write_enable,
-    output  reg                     mem_lo_write_enable,
-    output  reg                     mem_cp0_write_enable,
-    output  reg[`GPR_ADDR_BUS]      mem_regfile_write_addr,
-    output  reg[`RAM_ADDR_BUS]      mem_ram_write_addr,
-    output  reg[`CP0_ADDR_BUS]      mem_cp0_write_addr,
-    output  reg[`GPR_BUS]           mem_alu_data,
-    output  reg[`GPR_BUS]           mem_ram_write_data,
-    output  reg[`GPR_BUS]           mem_hi_write_data,
-    output  reg[`GPR_BUS]           mem_lo_write_data,
-    output  reg[`GPR_BUS]           mem_cp0_write_data,
-    output  reg                     mem_mem_to_reg,
-    output  reg[`RAM_ADDR_BUS]      mem_ram_read_addr
+    input   wire[31:0]  pc_i,
+    input   wire[31:0]  exception_type_i,
+    input   wire[31:0]  instruction_i,
+    input   wire        in_delayslot_i,
+    input   wire[7:0]   aluop_i,
+    input   wire        regfile_wen_i,
+    input   wire[4:0]   regfile_waddr_i,
+    input   wire        hi_wen_i,
+    input   wire[31:0]  hi_wdata_i,
+    input   wire        lo_wen_i,
+    input   wire[31:0]  lo_wdata_i,
+    input   wire        cp0_wen_i,
+    input   wire[4:0]   cp0_addr_i,
+    input   wire[2:0]   cp0_sel_i,
+    input   wire        mem_en_i,
+    input   wire        mem_to_reg_i,
+    input   wire[31:0]  alu_data_i,
+    input   wire[31:0]  rt_data_i,
+    
+    output  reg [31:0]  pc_o,
+    output  reg [31:0]  exception_type_o,
+    output  reg [31:0]  instruction_o,
+    output  reg         in_delayslot_o,
+    output  reg [7:0]   aluop_o,
+    output  reg         regfile_wen_o,
+    output  reg [4:0]   regfile_waddr_o,
+    output  reg         hi_wen_o,
+    output  reg [31:0]  hi_wdata_o,
+    output  reg         lo_wen_o,
+    output  reg [31:0]  lo_wdata_o,
+    output  reg         cp0_wen_o,
+    output  reg [4:0]   cp0_addr_o,
+    output  reg [2:0]   cp0_sel_o,
+    output  reg         mem_en_o,
+    output  reg         mem_to_reg_o,
+    output  reg [31:0]  alu_data_o,
+    output  reg [31:0]  rt_data_o
     );
-
-    wire inst_stall, id_stall, exe_stall, data_stall;
-    assign inst_stall = stall[0];
-    assign id_stall = stall[1];
-    assign exe_stall = stall[2];
-    assign data_stall = stall[3];
-
+    
+    wire inst_stall = stall[3];
+    wire id_stall = stall[2];
+    wire ex_stall = stall[1];
+    wire data_stall = stall[0];
+    
     always @ (posedge clk) begin
-        if (rst == `RST_ENABLE || exception == `EXCEPTION_ON) begin
-            mem_pc <= 32'b0;
-            mem_aluop <= 8'h00;
-            mem_now_in_delayslot <= 1'b0;
-            mem_exception_type <= 32'b0;
-            mem_regfile_write_enable <= 1'b0;
-            mem_ram_write_enable <= 1'b0;
-            mem_hi_write_enable <= 1'b0;
-            mem_lo_write_enable <= 1'b0;
-            mem_cp0_write_enable <= 1'b0;
-            mem_regfile_write_addr <= `ZEROWORD5;
-            mem_ram_write_addr <= 32'b0;
-            mem_cp0_write_addr <= 32'b0;
-            mem_alu_data <= 32'b0;
-            mem_ram_write_data <= 32'b0;
-            mem_hi_write_data <= 32'b0;
-            mem_lo_write_data <= 32'b0;
-            mem_cp0_write_data <= 32'b0;
-            mem_mem_to_reg <= 1'b0;
-            mem_ram_read_addr <= 32'b0;
-        end else if (exe_stall == 1'b1) begin
+        if (rst == `RST_ENABLE) begin
+            pc_o <= 32'b0;
+            exception_type_o <= 32'b0;
+            instruction_o <= 32'b0;
+            in_delayslot_o <= 1'b0;
+            aluop_o <= 8'b0;
+            regfile_wen_o <= 1'b0;
+            regfile_waddr_o <= 5'b0;
+            hi_wen_o <= 1'b0;
+            hi_wdata_o <= 32'b0;
+            lo_wen_o <= 1'b0;
+            lo_wdata_o <= 32'b0;
+            cp0_wen_o <= 1'b0;
+            cp0_addr_o <= 5'b0;
+            cp0_sel_o <= 3'b0;
+            mem_en_o <= 1'b0;
+            mem_to_reg_o <= 1'b0;
+            alu_data_o <= 32'b0;
+            rt_data_o <= 32'b0;
+        end else if (exception) begin
+            pc_o <= 32'b0;
+            exception_type_o <= 32'b0;
+            instruction_o <= 32'b0;
+            in_delayslot_o <= 1'b0;
+            aluop_o <= 8'b0;
+            regfile_wen_o <= 1'b0;
+            regfile_waddr_o <= 5'b0;
+            hi_wen_o <= 1'b0;
+            hi_wdata_o <= 32'b0;
+            lo_wen_o <= 1'b0;
+            lo_wdata_o <= 32'b0;
+            cp0_wen_o <= 1'b0;
+            cp0_addr_o <= 5'b0;
+            cp0_sel_o <= 3'b0;
+            mem_en_o <= 1'b0;
+            mem_to_reg_o <= 1'b0;
+            alu_data_o <= 32'b0;
+            rt_data_o <= 32'b0;
+        end else if (data_stall) begin
+        end else if (ex_stall == 1'b1) begin
+            pc_o <= 32'b0;
+            exception_type_o <= 32'b0;
+            instruction_o <= 32'b0;
+            in_delayslot_o <= 1'b0;
+            aluop_o <= 8'b0;
+            regfile_wen_o <= 1'b0;
+            regfile_waddr_o <= 5'b0;
+            hi_wen_o <= 1'b0;
+            hi_wdata_o <= 32'b0;
+            lo_wen_o <= 1'b0;
+            lo_wdata_o <= 32'b0;
+            cp0_wen_o <= 1'b0;
+            cp0_addr_o <= 5'b0;
+            cp0_sel_o <= 3'b0;
+            mem_en_o <= 1'b0;
+            mem_to_reg_o <= 1'b0;
+            alu_data_o <= 32'b0;
+            rt_data_o <= 32'b0;
         end else begin
-            if (data_stall == 1'b0) begin
-                mem_pc <= exe_pc;
-                mem_aluop <= exe_aluop;
-                mem_now_in_delayslot <= exe_now_in_delayslot;
-                mem_exception_type <= exe_exception_type;
-                mem_regfile_write_enable <= exe_regfile_write_enable;
-                mem_ram_write_enable <= exe_ram_write_enable;
-                mem_hi_write_enable <= exe_hi_write_enable;
-                mem_lo_write_enable <= exe_lo_write_enable;
-                mem_cp0_write_enable <= exe_cp0_write_enable;
-                mem_regfile_write_addr <= exe_regfile_write_addr;
-                mem_ram_write_addr <= exe_alu_data;
-                mem_cp0_write_addr <= exe_cp0_write_addr;
-                mem_alu_data <= exe_alu_data;
-                mem_ram_write_data <= exe_ram_write_data;
-                mem_hi_write_data <= exe_hi_write_data;
-                mem_lo_write_data <= exe_lo_write_data;
-                mem_cp0_write_data <= exe_cp0_write_data;
-                mem_mem_to_reg <= exe_mem_to_reg;
-                mem_ram_read_addr <= exe_alu_data;
-            end
+            pc_o <= pc_i;
+            exception_type_o <= exception_type_i;
+            instruction_o <= instruction_i;
+            in_delayslot_o <= in_delayslot_i;
+            aluop_o <= aluop_i;
+            regfile_wen_o <= regfile_wen_i;
+            regfile_waddr_o <= regfile_waddr_i;
+            hi_wen_o <= hi_wen_i;
+            hi_wdata_o <= hi_wdata_i;
+            lo_wen_o <= lo_wen_i;
+            lo_wdata_o <= lo_wdata_i;
+            cp0_wen_o <= cp0_wen_i;
+            cp0_addr_o <= cp0_addr_i;
+            cp0_sel_o <= cp0_sel_i;
+            mem_en_o <= mem_en_i;
+            mem_to_reg_o <= mem_to_reg_i;
+            alu_data_o <= alu_data_i;
+            rt_data_o <= rt_data_i;
         end
     end
 endmodule

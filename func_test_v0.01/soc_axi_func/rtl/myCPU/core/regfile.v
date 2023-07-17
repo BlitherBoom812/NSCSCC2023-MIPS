@@ -1,18 +1,21 @@
-`include "defines.vh"
-module regfile(
-input wire                  clk,
-input wire                  rst,
-input wire                  regfile_write_enable,
-input wire [`GPR_ADDR_BUS]  regfile_write_addr,
-input wire [`GPR_BUS]       regfile_write_data,
-input wire [`GPR_ADDR_BUS]  rs_read_addr,
-input wire [`GPR_ADDR_BUS]  rt_read_addr,
+`timescale 1ns / 1ps
 
-output reg [`GPR_BUS]       rs_data_o,
-output reg [`GPR_BUS]       rt_data_o
+`include "defines.vh"
+
+module regfile(
+    input   wire        clk,
+    input   wire        rst,
+    input   wire        regfile_write_enable,
+    input   wire[4:0]   regfile_write_addr,
+    input   wire[31:0]  regfile_write_data,
+    
+    input   wire[4:0]   rs_read_addr,
+    input   wire[4:0]   rt_read_addr,
+    output  reg [31:0]  rs_data_o,
+    output  reg [31:0]  rt_data_o
 );
 
-reg [`GPR_BUS] regfile [31:0];
+reg[31:0] regfile[31:0];
 
 always @ (posedge clk) begin
     if(rst == `RST_DISABLE)

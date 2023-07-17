@@ -1,4 +1,7 @@
+`timescale 1ns / 1ps
+
 `include "defines.vh"
+
 module div_wrapper(
 		input             clock,
 		input             reset,
