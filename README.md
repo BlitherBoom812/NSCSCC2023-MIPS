@@ -9,6 +9,6 @@
 
 增加ICache，IPC略有提升。
 
-![](./pic/perf.jpg)
+![](./sources/perf.jpg)
 
 by 和植物抢氧气队
