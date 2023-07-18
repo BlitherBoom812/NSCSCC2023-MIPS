@@ -104,26 +104,38 @@ genvar j, k;
 // useful signal
 wire [1:0] hit;
 wire replaced_way;
-wire [31:0] addr_req;
-wire [19:0] tag_req;
-wire [6:0] index_req;
-wire [2:0] offset_req;
-
-reg [31:0] addr_req_r;
-reg m_arvalid_r;
-
-reg m_wlast_r;
-reg m_wvalid_r;
-reg [31:0] m_wdata_r;
-
-reg s_wready_r;
-reg [31:0] s_rdata_r;
-reg s_rvalid_r;
 
 reg cached;
 reg [2:0] read_count = 3'd0;    // transfer 8 words(banks) per time
 reg [31:0] data_at_write_back = 32'h0000_0000;
+
+// request signal
+wire [31:0] addr_req;
+    wire [19:0] tag_req;
+    wire [6:0] index_req;
+    wire [2:0] offset_req;
+wire [31:0] wdata_req;
+wire arvalid_req;
+wire awvalid_req;
+
+reg [31:0] addr_req_r;
 reg [31:0] wdata_req_r;
+reg arvalid_req_r;
+reg awvalid_req_r;
+
+// master
+// ar
+reg m_arvalid_r;
+// w
+reg [31:0] m_wdata_r;
+reg m_wlast_r;
+reg m_wvalid_r;
+// slave
+// s
+reg s_wready_r;
+reg [31:0] s_rdata_r;
+reg s_rvalid_r;
+
 
 //-----------------------memory definition------------------------//
 // tag ram
@@ -157,12 +169,14 @@ generate
 endgenerate
 
 //-----------------------state transition------------------------//
-task set_addr_req_r();
+task set_req_r();
     begin
         addr_req_r <= s_addr;
+        arvalid_req_r <= arvalid_req;
+        awvalid_req_r <= awvalid_req;
+        wdata_req_r <= s_wdata;
     end
 endtask
-
 
 integer index;
 always @(posedge clk) begin
@@ -203,7 +217,7 @@ always @(posedge clk) begin
                             read_count <= 3'd0;
                             m_arvalid_r <= 1'b1;
                         end
-                        set_addr_req_r();
+                        set_req_r();
                         cached <= cache_ena;
                     end else if (|s_awvalid == 1'b1) begin
                         if (cache_ena) begin
@@ -211,8 +225,7 @@ always @(posedge clk) begin
                         end else begin
                             current_state <= READ_MEM;
                         end
-                        set_addr_req_r();
-                        wdata_req_r <= s_wdata;
+                        set_req_r();
                         cached <= cache_ena;
                     end
                 end
@@ -276,11 +289,14 @@ end
 assign m_arvalid = m_arvalid_r;
 assign m_rready = 1'b1;
 
-// calculate tag, index, offset
+// calculate addr, tag, index, offset, data
 assign addr_req = (current_state == IDLE) ? s_araddr : addr_req_r;
-assign tag_req = addr_req[31:12];
-assign index_req = addr_req[11:5];
-assign offset_req = addr_req[4:2];
+    assign tag_req = addr_req[31:12];
+    assign index_req = addr_req[11:5];
+    assign offset_req = addr_req[4:2];
+assign wdata_req = (current_state == IDLE) ? s_wdata : wdata_req_r;
+assign arvalid_req = (current_state == IDLE) ? s_arvalid : arvalid_req_r;
+assign awvalid_req = (current_state == IDLE) ? s_awvalid : awvalid_req_r;
 
 // indicate which way to be replaced
 assign replaced_way = lru[index_req];
