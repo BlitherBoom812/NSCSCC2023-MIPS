@@ -48,6 +48,10 @@ module data_cache_fifo(
     input         flush
 );
   
+/*
+采用write through方法
+*/
+
 reg [23:0] set0_0_addr;
 reg [23:0] set0_1_addr;
 reg [23:0] set0_2_addr;
