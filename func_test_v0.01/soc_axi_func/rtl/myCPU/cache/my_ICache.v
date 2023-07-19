@@ -203,7 +203,7 @@ always @(posedge clk) begin
                 current_state <= IDLE;
                 // update tagv
                 if (cached) begin
-                    v[hit] <= v[hit] | (1 << addr_req_r[11:5]);
+                    v[replaced_way][index_req] <= v[replaced_way][index_req] | 1;
                 end
             end
             default: ;
