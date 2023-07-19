@@ -13,7 +13,7 @@ module tb_inst_cache ();
     parameter PERIOD = 10;
 
     // inst_cache Inputs
-    reg         rst = `RST_DISABLE;
+    reg         rst = 1'b1;
     reg         clk = 0;
     wire        cache_ena;
     reg         m_arready = 0;
@@ -37,8 +37,8 @@ module tb_inst_cache ();
     end
 
     initial begin
-        #(PERIOD * 2) rst = `RST_ENABLE;
-        #(PERIOD * 2) rst = `RST_DISABLE;
+        #(PERIOD * 2) rst = 1'b0;
+        #(PERIOD * 2) rst = 1'b1;
     end
 
     inst_cache u_inst_cache (
@@ -122,7 +122,7 @@ module tb_inst_cache ();
     endtask
 
     always @(posedge clk) begin
-        if (rst == `RST_ENABLE) begin
+        if (rst == 1'b0) begin
             inst_req_count   <= 0;
             s_arvalid        <= 0;
             m_arready        <= 0;
@@ -192,7 +192,7 @@ module tb_inst_cache ();
     end
 
     always @(posedge clk) begin
-        if (rst == `RST_ENABLE) begin
+        if (rst == 1'b0) begin
             ram_state  <= RAM_IDLE;
             m_arready  <= 0;
             m_rlast    <= 0;

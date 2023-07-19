@@ -36,7 +36,7 @@ module data_cache_fifo(
     output        m_bready       ,
 	// slave
     // ar
-    input  [31:0] s_addr         , // ar?
+    input  [31:0] s_addr         ,
     input         s_arvalid      ,
     // r
     output [31:0] s_rdata        ,
@@ -48,10 +48,6 @@ module data_cache_fifo(
     input         flush
 );
   
-/*
-采用write through方法
-*/
-
 reg [23:0] set0_0_addr;
 reg [23:0] set0_1_addr;
 reg [23:0] set0_2_addr;
@@ -678,8 +674,6 @@ begin
 end
 endtask
 
-
-
 task cacheline_byte_write_data_set1_2(input [3:0] wen, input [31:0] write_data);
 begin
     if(hit) cacheline_ptr = s_addr[5:2];
@@ -767,8 +761,6 @@ begin
 end
 endtask
 
-
-
 task cacheline_byte_write_data_set1_3(input [3:0] wen, input [31:0] write_data);
 begin
     if(hit) cacheline_ptr = s_addr[5:2];
@@ -855,7 +847,6 @@ begin
     cacheline_ptr = cacheline_ptr + 4'b1;
 end
 endtask
-
 
 task cacheline_byte_write_data_set2_0(input [3:0] wen, input [31:0] write_data);
 begin
@@ -1031,8 +1022,6 @@ begin
 end
 endtask
 
-
-
 task cacheline_byte_write_data_set2_2(input [3:0] wen, input [31:0] write_data);
 begin
     if(hit) cacheline_ptr = s_addr[5:2];
@@ -1120,8 +1109,6 @@ begin
 end
 endtask
 
-
-
 task cacheline_byte_write_data_set2_3(input [3:0] wen, input [31:0] write_data);
 begin
     if(hit) cacheline_ptr = s_addr[5:2];
@@ -1208,10 +1195,6 @@ begin
     cacheline_ptr = cacheline_ptr + 4'b1;
 end
 endtask
-
-
-
-
 
 task cacheline_byte_write_data_set3_0(input [3:0] wen, input [31:0] write_data);
 begin
@@ -1386,8 +1369,6 @@ begin
     cacheline_ptr = cacheline_ptr + 4'b1;
 end
 endtask
-
-
 
 task cacheline_byte_write_data_set3_2(input [3:0] wen, input [31:0] write_data);
 begin
@@ -1570,34 +1551,34 @@ begin
     case (s_addr_r[7:6])
     2'b00: begin
         case(set0_hit_ptr)
-        2'b00: begin get_set_tag_addr = {set0_0_addr, 2'b00, 6'b0000}; end
-        2'b01: begin get_set_tag_addr = {set0_1_addr, 2'b00, 6'b0000}; end
-        2'b10: begin get_set_tag_addr = {set0_2_addr, 2'b00, 6'b0000}; end
-        2'b11: begin get_set_tag_addr = {set0_3_addr, 2'b00, 6'b0000}; end
+        2'b00:  get_set_tag_addr = {set0_0_addr, 2'b00, 6'b0000}; 
+        2'b01:  get_set_tag_addr = {set0_1_addr, 2'b00, 6'b0000}; 
+        2'b10:  get_set_tag_addr = {set0_2_addr, 2'b00, 6'b0000}; 
+        2'b11:  get_set_tag_addr = {set0_3_addr, 2'b00, 6'b0000}; 
         endcase
     end
     2'b01: begin
         case(set1_hit_ptr)
-        2'b00: begin get_set_tag_addr = {set1_0_addr, 2'b01, 6'b000000}; end
-        2'b01: begin get_set_tag_addr = {set1_1_addr, 2'b01, 6'b000000}; end
-        2'b10: begin get_set_tag_addr = {set1_2_addr, 2'b01, 6'b000000}; end
-        2'b11: begin get_set_tag_addr = {set1_3_addr, 2'b01, 6'b000000}; end
+        2'b00:  get_set_tag_addr = {set1_0_addr, 2'b01, 6'b000000}; 
+        2'b01:  get_set_tag_addr = {set1_1_addr, 2'b01, 6'b000000}; 
+        2'b10:  get_set_tag_addr = {set1_2_addr, 2'b01, 6'b000000}; 
+        2'b11:  get_set_tag_addr = {set1_3_addr, 2'b01, 6'b000000}; 
         endcase
     end
     2'b10: begin
         case(set2_hit_ptr)
-        2'b00: begin get_set_tag_addr = {set2_0_addr, 2'b10, 6'b000000}; end
-        2'b01: begin get_set_tag_addr = {set2_1_addr, 2'b10, 6'b000000}; end
-        2'b10: begin get_set_tag_addr = {set2_2_addr, 2'b10, 6'b000000}; end
-        2'b11: begin get_set_tag_addr = {set2_3_addr, 2'b10, 6'b000000}; end
+        2'b00:  get_set_tag_addr = {set2_0_addr, 2'b10, 6'b000000}; 
+        2'b01:  get_set_tag_addr = {set2_1_addr, 2'b10, 6'b000000}; 
+        2'b10:  get_set_tag_addr = {set2_2_addr, 2'b10, 6'b000000}; 
+        2'b11:  get_set_tag_addr = {set2_3_addr, 2'b10, 6'b000000}; 
         endcase
     end
     2'b11: begin
         case(set3_hit_ptr)
-        2'b00: begin get_set_tag_addr = {set3_0_addr, 2'b11, 6'b000000}; end
-        2'b01: begin get_set_tag_addr = {set3_1_addr, 2'b11, 6'b000000}; end
-        2'b10: begin get_set_tag_addr = {set3_2_addr, 2'b11, 6'b000000}; end
-        2'b11: begin get_set_tag_addr = {set3_3_addr, 2'b11, 6'b000000}; end
+        2'b00:  get_set_tag_addr = {set3_0_addr, 2'b11, 6'b000000}; 
+        2'b01:  get_set_tag_addr = {set3_1_addr, 2'b11, 6'b000000}; 
+        2'b10:  get_set_tag_addr = {set3_2_addr, 2'b11, 6'b000000}; 
+        2'b11:  get_set_tag_addr = {set3_3_addr, 2'b11, 6'b000000}; 
         endcase
     end
     endcase
@@ -1798,93 +1779,54 @@ begin
 end
 endtask
 
-// task cache_read_data(output [31:0] write_data);
-// begin
-//     case(set)
-//     2'b00:begin 
-//          case(set0_ptr)
-//              2'b00: cacheline_get_data(set0_0,write_data);
-//              2'b01: cacheline_get_data(set0_1,write_data);
-//              2'b10: cacheline_get_data(set0_2,write_data);
-//              2'b11: cacheline_get_data(set0_3,write_data);
-//          endcase
-//          end
-//      2'b01:begin 
-//          case(set1_ptr)
-//              2'b00: cacheline_get_data(set1_0,write_data);
-//              2'b01: cacheline_get_data(set1_1,write_data);
-//              2'b10: cacheline_get_data(set1_2,write_data);
-//              2'b11: cacheline_get_data(set1_3,write_data);
-//          endcase
-//          end
-//      2'b10:begin 
-//          case(set2_ptr)
-//              2'b00: cacheline_get_data(set2_0,write_data);
-//              2'b01: cacheline_get_data(set2_1,write_data);
-//              2'b10: cacheline_get_data(set2_2,write_data);
-//              2'b11: cacheline_get_data(set2_3,write_data);
-//          endcase
-//          end
-//      2'b11:begin 
-//          case(set3_ptr)
-//              2'b00: cacheline_get_data(set3_0,write_data);
-//              2'b01: cacheline_get_data(set3_1,write_data);
-//              2'b10: cacheline_get_data(set3_2,write_data);
-//              2'b11: cacheline_get_data(set3_3,write_data);
-//          endcase
-//      end
-//      endcase
-// end
-// endtask
-
 task write_current_tag();
 begin
     case(set)
 		2'b00: begin
 			case(set0_hit_ptr)
-            2'b00: begin /*if(is_read == 1'b0)*/ set0_dirty[0]= 1'b1;  
+            2'b00: begin set0_dirty[0]= 1'b1;  
             set0_0_addr = s_addr_r[31:8]; set0_valid[0] = 1'b1; end
-            2'b01: begin /*if(is_read == 1'b0)*/ set0_dirty[1]= 1'b1; 
+            2'b01: begin set0_dirty[1]= 1'b1; 
             set0_1_addr = s_addr_r[31:8]; set0_valid[1] = 1'b1; end
-            2'b10: begin /*if(is_read == 1'b0)*/ set0_dirty[2]= 1'b1; 
+            2'b10: begin set0_dirty[2]= 1'b1; 
             set0_2_addr = s_addr_r[31:8]; set0_valid[2] = 1'b1; end
-            2'b11: begin /*if(is_read == 1'b0)*/ set0_dirty[3]= 1'b1; 
+            2'b11: begin set0_dirty[3]= 1'b1; 
             set0_3_addr = s_addr_r[31:8]; set0_valid[3] = 1'b1; end
 			endcase
 		end
 		2'b01: begin
 			case(set1_hit_ptr)
-            2'b00: begin /*if(is_read == 1'b0)*/ set1_dirty[0]= 1'b1;  
+            2'b00: begin set1_dirty[0]= 1'b1;  
             set1_0_addr = s_addr_r[31:8]; set1_valid[0] = 1'b1; end
-            2'b01: begin /*if(is_read == 1'b0)*/ set1_dirty[1]= 1'b1; 
+            2'b01: begin set1_dirty[1]= 1'b1; 
             set1_1_addr = s_addr_r[31:8]; set1_valid[1] = 1'b1; end
-            2'b10: begin /*if(is_read == 1'b0)*/ set1_dirty[2]= 1'b1; 
+            2'b10: begin set1_dirty[2]= 1'b1; 
             set1_2_addr = s_addr_r[31:8]; set1_valid[2] = 1'b1; end
-            2'b11: begin /*if(is_read == 1'b0)*/ set1_dirty[3]= 1'b1; 
+            2'b11: begin set1_dirty[3]= 1'b1; 
             set1_3_addr = s_addr_r[31:8]; set1_valid[3] = 1'b1; end
             endcase
 		end
 		2'b10: begin
 			case(set2_hit_ptr)
-            2'b00: begin /*if(is_read == 1'b0)*/ set2_dirty[0]= 1'b1;  
+            2'b00: begin set2_dirty[0]= 1'b1;  
             set2_0_addr = s_addr_r[31:8]; set2_valid[0] = 1'b1; end
-            2'b01: begin /*if(is_read == 1'b0)*/ set2_dirty[1]= 1'b1; 
+            2'b01: begin set2_dirty[1]= 1'b1; 
             set2_1_addr = s_addr_r[31:8]; set2_valid[1] = 1'b1; end
-            2'b10: begin /*if(is_read == 1'b0)*/ set2_dirty[2]= 1'b1; 
+            2'b10: begin set2_dirty[2]= 1'b1; 
             set2_2_addr = s_addr_r[31:8]; set2_valid[2] = 1'b1; end
-            2'b11: begin /*if(is_read == 1'b0)*/ set2_dirty[3]= 1'b1; 
+            2'b11: begin set2_dirty[3]= 1'b1; 
             set2_3_addr = s_addr_r[31:8]; set2_valid[3] = 1'b1; end
             endcase
 		end
 		2'b11: begin
 			case(set3_hit_ptr)
-            2'b00: begin /*if(is_read == 1'b0)*/ set3_dirty[0]= 1'b1;  
+            2'b00: begin set3_dirty[0]= 1'b1;  
             set3_0_addr = s_addr_r[31:8]; set3_valid[0] = 1'b1; end
-            2'b01: begin /*if(is_read == 1'b0)*/ set3_dirty[1]= 1'b1; 
+            2'b01: begin set3_dirty[1]= 1'b1; 
             set3_1_addr = s_addr_r[31:8]; set3_valid[1] = 1'b1; end
-            2'b10: begin /*if(is_read == 1'b0)*/ set3_dirty[2]= 1'b1; 
+            2'b10: begin set3_dirty[2]= 1'b1; 
             set3_2_addr = s_addr_r[31:8]; set3_valid[2] = 1'b1; end
-            2'b11: begin /*if(is_read == 1'b0)*/ set3_dirty[3]= 1'b1; 
+            2'b11: begin set3_dirty[3]= 1'b1; 
             set3_3_addr = s_addr_r[31:8]; set3_valid[3] = 1'b1; end
             endcase
 		end
@@ -1931,7 +1873,6 @@ begin
 end
 endtask 
 
-
 always @(*)
 begin
     s_addr_r = s_addr;
@@ -1943,7 +1884,7 @@ endtask
 
 always @(posedge clk)
 begin
-    if(rst == `RST_ENABLE) begin
+    if(rst == 1'b0) begin
         init();    
         set0_0_addr <= 24'b0;
         set0_1_addr <= 24'b0;
@@ -1961,24 +1902,9 @@ begin
         set3_1_addr <= 24'b0;
         set3_2_addr <= 24'b0;
         set3_3_addr <= 24'b0;
-        /*set0_0 <= 514'b0;
-        set1_0 <= 514'b0;
-        set2_0 <= 514'b0;
-        set3_0 <= 514'b0;
-        set0_1 <= 514'b0;
-        set1_1 <= 514'b0;
-        set2_1 <= 514'b0;
-        set3_1 <= 514'b0;
-        set0_2 <= 514'b0;
-        set1_2 <= 514'b0;
-        set2_2 <= 514'b0;
-        set3_2 <= 514'b0;
-        set0_3 <= 514'b0;
-        set1_3 <= 514'b0;
-        set2_3 <= 514'b0;
-        set3_3 <= 514'b0;*/
         state <= state_idle;
-    end else begin
+    end 
+    else begin
         case(state)
         state_idle: begin
             if(s_arvalid == 1'b1 && !flush) begin
@@ -2019,7 +1945,7 @@ begin
                 end
             end
         end
-        /* write cache*/
+        //write cache
         state_write_miss_handle_dirty: begin
             if(dirty == 1'b1) begin
                 state <= state_write_miss_wait_write_burst;
@@ -2034,7 +1960,7 @@ begin
             end
         end
         state_write_miss_wait_write_burst: begin
-            if(m_awready) begin m_awvalid_r = 1'b0; end // need wait awready?
+            if(m_awready) begin m_awvalid_r = 1'b0; end
 			if(m_wready && m_awvalid_r == 1'b0) begin
 				cache_read_data(m_wdata_r);
 				if(cacheline_ptr == 4'b0000) begin 
@@ -2080,7 +2006,7 @@ begin
 			state <= state_idle;
 		end
         
-        /* write uncache*/
+        //write uncache
         state_write_uncache_wait_ram: begin
 		  if(m_awready) begin 
 		      m_awvalid_r <= 1'b0;
@@ -2089,7 +2015,6 @@ begin
 		  end
 		  if(m_bvalid) begin
 		      m_wvalid_r <= 1'b0;
-		      //m_wlast_r <= 1'b0;
 		      state <= state_write_uncache_wait_finish;
 		      s_wready_r <= 1'b1;
 		   end
@@ -2100,7 +2025,7 @@ begin
 		    state <= state_idle;
 		end
 		
-        /* read cache*/
+        //read cache
         state_read_miss_handle_dirty: begin
             if(dirty == 1'b1) begin
                 state <= state_read_miss_wait_write_burst;
@@ -2115,7 +2040,7 @@ begin
             end
         end
         state_read_miss_wait_write_burst: begin
-			if(m_awready) begin m_awvalid_r = 1'b0; end// need wait awrewady?
+			if(m_awready) begin m_awvalid_r = 1'b0; end
 			if(m_wready && m_awvalid_r == 1'b0) begin
 				cache_read_data(m_wdata_r);
 				if(cacheline_ptr == 4'b0000) begin 
@@ -2161,7 +2086,7 @@ begin
             s_rvalid_r <= 1'b0;
         end
          
-        /* read uncache*/
+        //read uncache
         state_read_uncache_wait_ram: begin
             if(m_arready) m_arvalid_r <= 1'b0;
             if(m_rvalid == 1'b1) begin

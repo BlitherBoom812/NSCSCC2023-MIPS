@@ -1,16 +1,16 @@
 `include "defines.vh"
 module div_wrapper(
-		input             clock,
-		input             reset,
-		input             start,
-		
-		input             flag_unsigned,
-		
-		input      [31:0] operand1,
-		input      [31:0] operand2,
+    input             clock,
+    input             reset,
+    input             start,
+    
+    input             flag_unsigned,
+    
+    input   [31:0]    operand1,
+    input   [31:0]    operand2,
 
-		output     [63:0] result,
-		output            done
+    output  [63:0]    result,
+    output            done
 );
 			
 parameter DIV_CYCLES = 36;
@@ -45,23 +45,17 @@ assign div_done = div_stage[0];
 assign dquotient = (flag_unsigned || !(operand1[31]^operand2[31])) ? tmp_quotient : -tmp_quotient;
 assign dremain = (flag_unsigned || !(operand1[31]^tmp_remain[31])) ? tmp_remain : -tmp_remain;
 
-
 assign done = div_done;
 assign result = {dremain, dquotient};
 
 always @(posedge clock) begin
-    if (reset == `RST_ENABLE) begin
+    if (reset == 1'b0) 
         div_stage <= 'b0;
-    end
-    else if(!start) begin
+    else if(!start)
         div_stage <= 'b0;
-    end
-    else if(div_stage != 'b0) begin
+    else if(div_stage != 'b0)
         div_stage <= div_stage >> 1; 
-    end
-	else begin
+	else
         div_stage <= 'b1 << (DIV_CYCLES-1);
-    end
 end
-
 endmodule

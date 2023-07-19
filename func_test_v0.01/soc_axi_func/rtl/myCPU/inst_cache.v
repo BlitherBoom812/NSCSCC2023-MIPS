@@ -1,55 +1,26 @@
 `include "defines.vh"
-module data_cache_fifo(
-    input         clk            ,
+module inst_cache(
     input         rst            ,
+    input         clk            ,
     input         cache_ena      ,
+    
     // master
-    // ar
     output [31:0] m_araddr       ,
     output        m_arvalid      ,
     input         m_arready      ,
-    // r
-    input  [31:0] m_rdata        ,
+    input  [31:0] m_rdata        ,  // cache作为主设备从内存（从设备）中读取得到的数据
     input         m_rlast        ,
     input         m_rvalid       ,
     output        m_rready       ,
-    // aw
-    output [3:0]  m_awid         ,
-    output [7 :0] m_awlen        ,
-    output [2 :0] m_awsize       ,
-    output [1 :0] m_awburst      ,
-    output [1 :0] m_awlock       ,
-    output [3 :0] m_awcache      ,
-    output [2 :0] m_awprot       ,
-    output [31:0] m_awaddr       ,
-    output        m_awvalid      ,
-    input         m_awready      ,
-    // w
-    output [3:0]  m_wid          ,         
-    output [31:0] m_wdata        ,
-    output        m_wlast        ,
-    output [3:0]  m_wstrb        ,
-    output        m_wvalid       ,
-    input         m_wready       ,
-    // b
-    input         m_bvalid       ,
-    output        m_bready       ,
-	// slave
-    // ar, aw
-    input  [31:0] s_addr         ,  // ar & aw 共用一个addr data_addr
-    // ar
-    input         s_arvalid      ,  // data_ren
-    // r
-    output [31:0] s_rdata        ,  // data_rd
-    output        s_rvalid       ,  // data_valid_r
-    // aw
-    input  [3:0]  s_awvalid      ,  //data_wen, 不同于传统的awvalid，这里的awvalid其实是data_wen
-    // w
-    input  [31:0] s_wdata        ,  // data_wd
-    output        s_wready       ,  // data_cache_write_ok
-    input         flush
-);
 
+    // slave
+    input  [31:0] s_araddr       ,
+    input         s_arvalid      ,
+    output [31:0] s_rdata        ,  // cache作为从设备向调用它的cpu（主设备）发送读取的数据
+    output        s_rvalid       ,       
+    input         flush
+
+);
 
 /*
 2 ways, 4kB per way. 128 sets.
@@ -57,23 +28,20 @@ module data_cache_fifo(
 Every line(block) contains 32 Bytes(8 words), 4 Bytes per word.
 
 width:
-TAG = 20, INDEX = 7, OFFSET = 5, V = 1, LRU = 1, D = 1.
+TAG = 20, INDEX = 7, OFFSET = 5, V = 1, LRU = 1.
 
 [31: 12] [11: 5] [4: 0]
 
 8 bank per way, 32 bits/bank.
-
-write_through method.
 
 */
 
 //-----------------------state definition------------------------//
 parameter IDLE = 4'd0;  // wait addr and request
 parameter COMP_TAG = 4'd1;   // compare tag between addr and tagv & update lru
-parameter READ_MEM = 4'h2;  // request data from memory, if m_arready = 1, then go to SELECT
-parameter SELECT = 4'h3;    // choose the target to be replaced; send request to read tag, v & d, bank data from ram(if m_rvalid = 1 then handle the coming data)
-parameter REPLACE = 4'h4;   // update v and d & if dirty send request to write back(if m_rvalid = 1 then handle the coming data)
-parameter REFILL = 4'h5;    // wait for data from memory, then update data ram and tag ram, v & d & lru; wait the write back finished.
+parameter READ_MEM = 4'h2;  // read new block from mem to addr, and write new block inst cache
+parameter WRITE_BACK = 4'h3;    // update tagv and lru & send missing data back to cpu
+
 //-----------------------signal definition-----------------------//
 // state
 reg [3:0] current_state = IDLE;
@@ -89,7 +57,6 @@ genvar i;
 
 // v and lru
 reg [127:0] v [1:0];// v(0~127, 2 way)
-reg [127:0] d [1:0];// d(0~127, 2 way)
 reg [127:0] lru;    // lru(0~127)
 
 // data ram
@@ -104,38 +71,16 @@ genvar j, k;
 // useful signal
 wire [1:0] hit;
 wire replaced_way;
+wire [31:0] addr_req;
+wire [19:0] tag_req;
+wire [6:0] index_req;
+wire [2:0] offset_req;
 
+reg [31:0] addr_req_r;
+reg m_arvalid_r;
 reg cached;
 reg [2:0] read_count = 3'd0;    // transfer 8 words(banks) per time
 reg [31:0] data_at_write_back = 32'h0000_0000;
-
-// request signal
-wire [31:0] addr_req;
-    wire [19:0] tag_req;
-    wire [6:0] index_req;
-    wire [2:0] offset_req;
-wire [31:0] wdata_req;
-wire arvalid_req;
-wire awvalid_req;
-
-reg [31:0] addr_req_r;
-reg [31:0] wdata_req_r;
-reg arvalid_req_r;
-reg awvalid_req_r;
-
-// master
-// ar
-reg m_arvalid_r;
-// w
-reg [31:0] m_wdata_r;
-reg m_wlast_r;
-reg m_wvalid_r;
-// slave
-// s
-reg s_wready_r;
-reg [31:0] s_rdata_r;
-reg s_rvalid_r;
-
 
 //-----------------------memory definition------------------------//
 // tag ram
@@ -169,43 +114,32 @@ generate
 endgenerate
 
 //-----------------------state transition------------------------//
-task set_req_r();
+task set_addr_req_r();
     begin
-        addr_req_r <= s_addr;
-        arvalid_req_r <= arvalid_req;
-        awvalid_req_r <= awvalid_req;
-        wdata_req_r <= s_wdata;
+        addr_req_r <= s_araddr;
     end
 endtask
 
 integer index;
 always @(posedge clk) begin
-    if(rst == `RST_ENABLE) begin
+    if(rst == 1'b0) begin
         current_state <= IDLE;
         for (index = 0;index < 2;index = index + 1) begin
             v[index] <= {128{1'b0}};
-            d[index] <= {128{1'b0}};
         end
 
         lru <= {128{1'b0}};
 
         addr_req_r <= 32'h0000_0000;
+
         m_arvalid_r <= 1'b0;
-
-        m_wlast_r <= 1'b0;
-        m_wvalid_r <= 1'b0;
-        m_wdata_r <= 32'h0000_0000;
-
-        s_wready_r <= 1'b0;
-        s_rdata_r <= 32'h0000_0000;
-        s_rvalid_r <= 1'b0;
-
         cached <= 1'b0;
+
         read_count <= 3'd0;
         data_at_write_back <= 32'h0000_0000;
 
-
-    end else begin
+    end 
+    else begin
         case (current_state)
             IDLE: begin
                 if(!flush) begin
@@ -217,15 +151,8 @@ always @(posedge clk) begin
                             read_count <= 3'd0;
                             m_arvalid_r <= 1'b1;
                         end
-                        set_req_r();
-                        cached <= cache_ena;
-                    end else if (|s_awvalid == 1'b1) begin
-                        if (cache_ena) begin
-                            current_state <= COMP_TAG;
-                        end else begin
-                            current_state <= READ_MEM;
-                        end
-                        set_req_r();
+                        // addr_req_r <= s_araddr;
+                        set_addr_req_r();
                         cached <= cache_ena;
                     end
                 end
@@ -289,14 +216,11 @@ end
 assign m_arvalid = m_arvalid_r;
 assign m_rready = 1'b1;
 
-// calculate addr, tag, index, offset, data
+// calculate tag, index, offset
 assign addr_req = (current_state == IDLE) ? s_araddr : addr_req_r;
-    assign tag_req = addr_req[31:12];
-    assign index_req = addr_req[11:5];
-    assign offset_req = addr_req[4:2];
-assign wdata_req = (current_state == IDLE) ? s_wdata : wdata_req_r;
-assign arvalid_req = (current_state == IDLE) ? s_arvalid : arvalid_req_r;
-assign awvalid_req = (current_state == IDLE) ? s_awvalid : awvalid_req_r;
+assign tag_req = addr_req[31:12];
+assign index_req = addr_req[11:5];
+assign offset_req = addr_req[4:2];
 
 // indicate which way to be replaced
 assign replaced_way = lru[index_req];
@@ -328,57 +252,7 @@ endgenerate
 // assume the cpu get data from cache in 1 cycle, so don't have a reg to wait
 // if hit, the cpu get data at COMP_TAG state
 // else, the cpu get data at WRITE_BACK state
-assign s_rvalid =
-    ((current_state == COMP_TAG) && (|hit)) ?
-        1'b1
-    :
-        ((current_state == WRITE_BACK) ?
-            1'b1
-        :
-            1'b0);
-assign s_rdata = 
-    (current_state == COMP_TAG && (|hit)) ?
-        ((hit[0] == 1'b1) ? 
-            data_rdata[0][offset_req]
-        :
-            data_rdata[1][offset_req])
-    :
-        ((current_state == WRITE_BACK) ? 
-            data_at_write_back
-        :
-            {32{1'b0}});
+assign s_rvalid = ((current_state == COMP_TAG) && (|hit)) ? 1'b1:((current_state == WRITE_BACK) ? 1'b1:1'b0);
+assign s_rdata = (current_state == COMP_TAG && (|hit)) ? ((hit[0] == 1'b1) ? data_rdata[0][offset_req] : data_rdata[1][offset_req]) : ((current_state == WRITE_BACK) ? data_at_write_back : {32{1'b0}});
 
-function [2:0]get_awsize(input cache_ena, input [3:0]s_awvalid);
-begin
-    if(cache_ena) begin
-        get_awsize = 3'b010;
-    end else begin
-        case(s_awvalid)
-        4'b1111: get_awsize = 3'b010;
-        4'b1100,4'b0011: get_awsize = 3'b001;
-        4'b0001,4'b0010,4'b0100,4'b1000: get_awsize = 3'b000;
-        default: get_awsize = 3'b000; 
-        endcase
-    end
-end
-endfunction
-
-assign m_awsize = get_awsize(cache_ena,s_awvalid);
-assign m_awburst = cache_ena ? 2'b01:2'b00;
-assign m_awlock = 2'b00;
-assign m_awcache = 4'b0000;
-assign m_awprot = 3'b000;
-
-assign m_wid = 4'b0000;
-assign m_wlast = m_wlast_r;
-assign m_wvalid = m_wvalid_r;
-assign m_wdata = m_wdata_r;
-assign m_wstrb = cache_ena ? 4'b1111 : s_awvalid;
-
-assign m_bready = 1'b1;
-
-assign s_wready = s_wready_r;
-assign s_rdata = s_rdata_r;
-assign s_rvalid = s_rvalid_r;
-
-endmodule;
+endmodule

@@ -57,37 +57,27 @@
 `timescale 1ns / 10ps
 //synopsys translate_on
 
-module div_uu(clk, ena, z, d, q, s, div0, ovf);
+module div_uu(
+	input 				  clk, // system clock
+	input 				  ena, // clock enable
 
-	//
-	// parameters
-	//
+	input  [z_width -1:0] z, // divident
+	input  [d_width -1:0] d, // divisor
+	output [d_width -1:0] q, // quotient
+	output [d_width -1:0] s, // remainder
+	output 				  div0,
+	output                ovf
+);
+
 	parameter z_width = 16;
 	parameter d_width = z_width /2;
-	
-	//
-	// inputs & outputs
-	//
-	input clk;               // system clock
-	input ena;               // clock enable
 
-	input  [z_width -1:0] z; // divident
-	input  [d_width -1:0] d; // divisor
-	output [d_width -1:0] q; // quotient
-	output [d_width -1:0] s; // remainder
-	output div0;
-	output ovf;
 	reg [d_width-1:0] q;
 	reg [d_width-1:0] s;
 	reg div0;
 	reg ovf;
 
-	//	
-	// functions
-	//
-	function [z_width:0] gen_s;
-		input [z_width:0] si;
-		input [z_width:0] di;
+	function [z_width:0] gen_s(input [z_width:0] si, input [z_width:0] di);
 	begin
 	  if(si[z_width])
 	    gen_s = {si[z_width-1:0], 1'b0} + di;
@@ -118,17 +108,14 @@ module div_uu(clk, ena, z, d, q, s, div0, ovf);
 	end
 	endfunction
 
-	//
-	// variables
-	//
 	reg [d_width-1:0] q_pipe  [d_width-1:0];
 	reg [z_width:0] s_pipe  [d_width:0];
 	reg [z_width:0] d_pipe  [d_width:0];
 
 	reg [d_width:0] div0_pipe, ovf_pipe;
-	//
+	
 	// perform parameter checks
-	//
+	
 	// synopsys translate_off
 	initial
 	begin
@@ -154,8 +141,10 @@ module div_uu(clk, ena, z, d, q, s, div0, ovf);
 
 	always @(posedge clk)
 	  if(ena)
-	    for(n1=1; n1 <= d_width; n1=n1+1)
+	    for(n1=1; n1 <= d_width; n1=n1+1) begin
 	       s_pipe[n1] <= #1 gen_s(s_pipe[n1-1], d_pipe[n1-1]);
+		
+		end
 
 	// generate quotient pipe
 	always @(posedge clk)
@@ -163,9 +152,10 @@ module div_uu(clk, ena, z, d, q, s, div0, ovf);
 
 	always @(posedge clk)
 	  if(ena)
-	    for(n2=1; n2 < d_width; n2=n2+1)
+	    for(n2=1; n2 < d_width; n2=n2+1) begin
 	       q_pipe[n2] <= #1 gen_q(q_pipe[n2-1], s_pipe[n2]);
 
+		end
 
 	// flags (divide_by_zero, overflow)
 	always @(z or d)
@@ -192,13 +182,14 @@ module div_uu(clk, ena, z, d, q, s, div0, ovf);
 	    div0 <= #1 div0_pipe[d_width];
 
 	always @(posedge clk)
-	  if(ena)
+	  if(ena) begin
 	    q <= #1 gen_q(q_pipe[d_width-1], s_pipe[d_width]);
 
+	  end
+
 	always @(posedge clk)
-	  if(ena)
+	  if(ena) begin
 	    s <= #1 assign_s(s_pipe[d_width], d_pipe[d_width]);
+
+	  end
 endmodule
-
-
-

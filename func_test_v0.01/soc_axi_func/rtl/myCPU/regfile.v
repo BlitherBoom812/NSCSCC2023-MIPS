@@ -1,27 +1,27 @@
 `include "defines.vh"
 module regfile(
-input wire                  clk,
-input wire                  rst,
-input wire                  regfile_write_enable,
-input wire [`GPR_ADDR_BUS]  regfile_write_addr,
-input wire [`GPR_BUS]       regfile_write_data,
-input wire [`GPR_ADDR_BUS]  rs_read_addr,
-input wire [`GPR_ADDR_BUS]  rt_read_addr,
+    input                   clk,
+    input                   rst,
+    input                   regfile_write_enable,
+    input  [4:0]            regfile_write_addr,
+    input  [31:0]           regfile_write_data,
+    input  [4:0]            rs_read_addr,
+    input  [4:0]            rt_read_addr,
 
-output reg [`GPR_BUS]       rs_data_o,
-output reg [`GPR_BUS]       rt_data_o
+    output reg [31:0]       rs_data_o,
+    output reg [31:0]       rt_data_o
 );
 
-reg [`GPR_BUS] regfile [31:0];
+reg [31:0] regfile [31:0];
 
 always @ (posedge clk) begin
-    if(rst == `RST_DISABLE)
+    if(rst == 1'b1)
         if(regfile_write_enable == 1'b1 && regfile_write_addr != 5'h0) 
             regfile[regfile_write_addr] = regfile_write_data;
 end
     
 always @ (*) begin
-    if(rst == `RST_ENABLE)
+    if(rst == 1'b0)
         rs_data_o <= 32'h0;
     else if(rs_read_addr == 5'h0)
         rs_data_o <= 32'h0;
@@ -32,7 +32,7 @@ always @ (*) begin
 end 
 
 always @ (*) begin
-    if(rst == `RST_ENABLE)
+    if(rst == 1'b0)
         rt_data_o <= 32'h0;
     else if(rt_read_addr == 5'h0)
         rt_data_o <= 32'h0;
@@ -40,6 +40,5 @@ always @ (*) begin
         rt_data_o <= regfile_write_data;
     else
         rt_data_o <= regfile[rt_read_addr];
-end
-   
+end 
 endmodule
