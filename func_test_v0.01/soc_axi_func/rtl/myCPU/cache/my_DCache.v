@@ -109,9 +109,11 @@ wire replaced_way;
 reg cached;
 reg [2:0] read_count = 3'd0;    // transfer 8 words(banks) per time
 reg [31:0] data_at_refill = 32'h0000_0000;  // the target data requested from cpu(used at refill stage)
+reg [1:0] read_state; // 0 for idle, 1 for sending, 2 for done.
 
 reg [2:0] write_count = 3'd0;
 reg [31:0] data_for_write_through [7:0]; // if dirty, data from ram should be write through to memory. This reg is used for store it temporarily.
+reg [1:0] write_state;  // 0 for idle, 1 for sending, 2 for done.
 
 // request signal
 wire [31:0] addr_req;
@@ -209,8 +211,13 @@ always @(posedge clk) begin
         cached <= 1'b0;
         read_count <= 3'd0;
         data_at_refill <= 32'h0000_0000;
+        read_state <= 2'b0;
 
         write_count <= 1'b0;
+        for (index = 0;index < 8;index = index + 1) begin
+            data_for_write_through[index] <= 32'h0000_0000;
+        end
+        write_state <= 2'b0;
 
     end else begin
         case (current_state)
@@ -264,10 +271,18 @@ always @(posedge clk) begin
             // wait data from memory, and wait for write data. for cached data, it replaces cache line, also writes dirty data to memory; for uncached, it goes directly to read/write memory.
             // todo: add write channel support
             READ_MEM: begin
+                // read
                 if (m_arready == 1'b1) begin
                     m_arvalid_r <= 1'b0;
+                    read_state <= 2'b01;
+                end
+                // write
+                if (m_awready == 1'b1) begin
+                    m_awvalid_r <= 1'b0;
+                    write_state <= 2'b01;
                 end
                 if (cached) begin
+                    // read
                     if (m_rvalid) begin
                         read_count <= read_count + 1'b1;
                         // if axi outputs data needed, then put it into data_at_refill, and send to s_rdata at REFILL
@@ -277,14 +292,25 @@ always @(posedge clk) begin
                         // write data to data ram (see assign)
                     end
                     if (m_rlast == 1'b1) begin 
-                        current_state <= REFILL;
+                        // current_state <= REFILL;
+                        read_state <= 2'b10;
                         read_count <= 3'b0;
                     end
+                    // write
+
+                    // transistion
+                    if ((read_state == 2'b10) && (write_state == 2'b10)) begin
+                        current_state <= REFILL;
+                        read_state <= 2'b00;
+                        write_state <= 2'b00;
+                    end
                 end else begin
+                    // read
                     if (m_rvalid && m_rlast) begin
                         current_state <= REFILL;
                         data_at_refill <= m_rdata;
                     end
+                    // write
                 end
 
             end
@@ -295,15 +321,15 @@ always @(posedge clk) begin
                 // update tag v d
                 if (cached) begin
                     // update v for both read and write
-                    v[replaced_way] <= v[replaced_way] | (1 << addr_req_r[11:5]);
+                    v[replaced_way][index_req] <= v[replaced_way][index_req] | 1;
                     // update d for only write
                     if (|awvalid_req == 1'b1) begin
                         // update d
-                        d[replaced_way] <= d[replaced_way] | (1 << addr_req_r[11:5]);
+                        d[replaced_way][index_req] <= d[replaced_way][index_req] | 1;
                     end else if (arvalid_req) begin
                         // update d
                         // it means first time of reading from memory to cache. the d should be 0.
-                        d[replaced_way] <= d[replaced_way] & (~(1 << addr_req_r[11:5]));
+                        d[replaced_way][index_req] <= d[replaced_way][index_req] & 0;
                     end
                 end
             end
