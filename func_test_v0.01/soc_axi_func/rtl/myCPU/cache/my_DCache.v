@@ -1,4 +1,5 @@
 `include "defines.vh"
+`include "cache_config.vh"
 module data_cache_fifo(
     input         clk            ,
     input         rst            ,
@@ -72,8 +73,8 @@ parameter IDLE = 4'd0;  // wait addr and request
 parameter COMP_TAG = 4'd1;   // compare tag between addr and tagv & update lru
 parameter READ_MEM = 4'h2;  // request data from memory, if m_arready = 1, then go to SELECT
 parameter SELECT = 4'h3;    // choose the target to be replaced; send request to read tag, v & d, bank data from ram(if m_rvalid = 1 then handle the coming data)
-parameter REPLACE = 4'h4;   // update v and d & if dirty send request to write back(if m_rvalid = 1 then handle the coming data)
-parameter REFILL = 4'h5;    // wait for data from memory, then update data ram and tag ram, v & d & lru; wait the write back finished.
+parameter REPLACE = 4'h4;   // update v and d & if dirty send request to write back(if m_rvalid = 1 then handle the coming data), wait for data from memory,  wait the write back finished.
+parameter REFILL = 4'h5;    // then update data ram and tag ram, v & d & lru.
 //-----------------------signal definition-----------------------//
 // state
 reg [3:0] current_state = IDLE;
@@ -107,7 +108,10 @@ wire replaced_way;
 
 reg cached;
 reg [2:0] read_count = 3'd0;    // transfer 8 words(banks) per time
-reg [31:0] data_at_write_back = 32'h0000_0000;
+reg [31:0] data_at_refill = 32'h0000_0000;  // the target data requested from cpu(used at refill stage)
+
+reg [2:0] write_count = 3'd0;
+reg [31:0] data_for_write_through [7:0]; // if dirty, data from ram should be write through to memory. This reg is used for store it temporarily.
 
 // request signal
 wire [31:0] addr_req;
@@ -116,16 +120,18 @@ wire [31:0] addr_req;
     wire [2:0] offset_req;
 wire [31:0] wdata_req;
 wire arvalid_req;
-wire awvalid_req;
+wire [3:0] awvalid_req;
 
 reg [31:0] addr_req_r;
 reg [31:0] wdata_req_r;
 reg arvalid_req_r;
-reg awvalid_req_r;
+reg [3:0] awvalid_req_r;
 
 // master
 // ar
 reg m_arvalid_r;
+// aw
+reg m_awvalid_r;
 // w
 reg [31:0] m_wdata_r;
 reg m_wlast_r;
@@ -202,14 +208,16 @@ always @(posedge clk) begin
 
         cached <= 1'b0;
         read_count <= 3'd0;
-        data_at_write_back <= 32'h0000_0000;
+        data_at_refill <= 32'h0000_0000;
 
+        write_count <= 1'b0;
 
     end else begin
         case (current_state)
+            // wait addr and request
             IDLE: begin
                 if(!flush) begin
-                    if (s_arvalid == 1'b1) begin
+                    if ((s_arvalid == 1'b1) || (|s_awvalid == 1'b1)) begin
                         if (cache_ena) begin
                             current_state <= COMP_TAG;
                         end else begin
@@ -219,32 +227,42 @@ always @(posedge clk) begin
                         end
                         set_req_r();
                         cached <= cache_ena;
-                    end else if (|s_awvalid == 1'b1) begin
-                        if (cache_ena) begin
-                            current_state <= COMP_TAG;
-                        end else begin
-                            current_state <= READ_MEM;
-                        end
-                        set_req_r();
-                        cached <= cache_ena;
                     end
                 end
             end
 
+            // compare tag between addr and tagv & update lru
             COMP_TAG: begin
                 if (|hit) begin
-                    current_state <= IDLE;
-                    lru[addr_req_r[11:5]] <= (hit[0] == 1'b1) ? 1'b0 : 1'b1;
-                end
-                else begin
+                    // if hit: for read, it updates lru and goes back to IDLE; for write, it updates lru, data ram and goes to IDLE.
+                    lru[addr_req_r[11:5]] <= (hit[0] == 1'b1) ? 1'b0 : 1'b1;    
+                    if (arvalid_req == 1'b1) begin
+                        current_state <= IDLE;                     
+                    end else if (|awvalid_req == 1'b1) begin
+                        current_state <= REFILL;
+                    end
+                end else begin
+                    // if not hit: for read, it sends addr and goes to READ_MEM; for write, it sends addr and goes to READ_MEM; also, it handles the write through process.
                     lru[addr_req_r[11:5]] <= ~lru[addr_req_r[11:5]];
+                    // for read work
                     current_state <= READ_MEM;
                     read_count <= 3'd0;
                     m_arvalid_r <= 1'b1;
+                    // for write work
+                    if (d[replaced_way][index_req] == 1'b1) begin
+                        // if dirty, send write back request
+                        write_count <= 3'd0;
+                        m_awvalid_r <= 1'b1;
+                        // store ram data to be written back
+                        for (index = 0;index < 8; index = index + 1) begin
+                            data_for_write_through[index] <= data_rdata[replaced_way][index];
+                        end
+                    end
                 end
             end
 
-            // read mem & write to data ram
+            // wait data from memory, and wait for write data. for cached data, it replaces cache line, also writes dirty data to memory; for uncached, it goes directly to read/write memory.
+            // todo: add write channel support
             READ_MEM: begin
                 if (m_arready == 1'b1) begin
                     m_arvalid_r <= 1'b0;
@@ -252,31 +270,41 @@ always @(posedge clk) begin
                 if (cached) begin
                     if (m_rvalid) begin
                         read_count <= read_count + 1'b1;
-                        // if axi outputs data needed, then put it into data_at_write_back, and send to s_rdata at WRITE_BACK
+                        // if axi outputs data needed, then put it into data_at_refill, and send to s_rdata at REFILL
                         if (read_count == addr_req_r[4:2]) begin
-                            data_at_write_back <= m_rdata;
+                            data_at_refill <= m_rdata;
                         end
                         // write data to data ram (see assign)
                     end
                     if (m_rlast == 1'b1) begin 
-                        current_state <= WRITE_BACK;
+                        current_state <= REFILL;
                         read_count <= 3'b0;
                     end
                 end else begin
                     if (m_rvalid && m_rlast) begin
-                        current_state <= WRITE_BACK;
-                        data_at_write_back <= m_rdata;
+                        current_state <= REFILL;
+                        data_at_refill <= m_rdata;
                     end
                 end
 
             end
-
-            // update tagv & send missing data back to cpu
-            WRITE_BACK: begin
+            // 1. update tag, v and d 
+            // 2. for read, send missing data back to cpu; for write, update the data in ram. 1 cycle.
+            REFILL: begin
                 current_state <= IDLE;
-                // update tagv
+                // update tag v d
                 if (cached) begin
-                    v[hit] <= v[hit] | (1 << addr_req_r[11:5]);
+                    // update v for both read and write
+                    v[replaced_way] <= v[replaced_way] | (1 << addr_req_r[11:5]);
+                    // update d for only write
+                    if (|awvalid_req == 1'b1) begin
+                        // update d
+                        d[replaced_way] <= d[replaced_way] | (1 << addr_req_r[11:5]);
+                    end else if (arvalid_req) begin
+                        // update d
+                        // it means first time of reading from memory to cache. the d should be 0.
+                        d[replaced_way] <= d[replaced_way] & (~(1 << addr_req_r[11:5]));
+                    end
                 end
             end
             default: ;
@@ -318,21 +346,21 @@ for(i = 0;i < 2;i = i + 1) begin: gen_u1
         assign data_wdata[i][j] = m_rdata;
         assign data_addr[i][j] = index_req;
     end
-    // used for WRITE_BACK
-    assign tag_wen[i] = ((cached) && (current_state == WRITE_BACK) && (replaced_way == i));
+    // used for REFILL
+    assign tag_wen[i] = ((cached) && (current_state == REFILL) && (replaced_way == i));
     assign tag_wdata[i] = tag_req;
 end
 endgenerate
 
-// send data to CPU (at COMP_TAG or WRITE_BACK)
+// send data to CPU (at COMP_TAG or REFILL)
 // assume the cpu get data from cache in 1 cycle, so don't have a reg to wait
 // if hit, the cpu get data at COMP_TAG state
-// else, the cpu get data at WRITE_BACK state
+// else, the cpu get data at REFILL state
 assign s_rvalid =
     ((current_state == COMP_TAG) && (|hit)) ?
         1'b1
     :
-        ((current_state == WRITE_BACK) ?
+        ((current_state == REFILL) ?
             1'b1
         :
             1'b0);
@@ -343,12 +371,12 @@ assign s_rdata =
         :
             data_rdata[1][offset_req])
     :
-        ((current_state == WRITE_BACK) ? 
-            data_at_write_back
+        ((current_state == REFILL) ? 
+            data_at_refill
         :
             {32{1'b0}});
 
-function [2:0]get_awsize(input cache_ena, input [3:0]s_awvalid);
+function [2:0] get_awsize(input cache_ena, input [3:0] s_awvalid);
 begin
     if(cache_ena) begin
         get_awsize = 3'b010;
@@ -363,22 +391,31 @@ begin
 end
 endfunction
 
-assign m_awsize = get_awsize(cache_ena,s_awvalid);
-assign m_awburst = cache_ena ? 2'b01:2'b00;
+// master
+// aw
+assign m_awid = 4'b0000;
+assign m_awlen = cached ? `DATA_BURST_NUM : 8'h00;
+assign m_awsize = get_awsize(cached, s_awvalid);
+assign m_awburst = cached ? 2'b01:2'b00;
 assign m_awlock = 2'b00;
 assign m_awcache = 4'b0000;
 assign m_awprot = 3'b000;
-
+assign m_awaddr = (cached) ? {tag_req, index_req, {5{1'b0}}} : s_addr;
+assign m_awvalid = m_awvalid_r;
+// w
 assign m_wid = 4'b0000;
+assign m_wdata = m_wdata_r;
 assign m_wlast = m_wlast_r;
 assign m_wvalid = m_wvalid_r;
-assign m_wdata = m_wdata_r;
-assign m_wstrb = cache_ena ? 4'b1111 : s_awvalid;
-
+assign m_wstrb = cached ? 4'b1111 : s_awvalid;
+// b
 assign m_bready = 1'b1;
-
-assign s_wready = s_wready_r;
+// slave
+// r
 assign s_rdata = s_rdata_r;
 assign s_rvalid = s_rvalid_r;
+// w
+assign s_wready = s_wready_r;
+
 
 endmodule;
