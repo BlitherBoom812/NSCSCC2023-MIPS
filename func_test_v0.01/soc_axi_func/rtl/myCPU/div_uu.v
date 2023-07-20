@@ -48,94 +48,36 @@
 //               Fixed a bug in the remainder output of div_su.v
 //
 //               Revision 1.1.1.1  2002/10/29 20:29:10  rherveille
-//
-//
-//
-`default_nettype wire
 
-//synopsys translate_off
-`timescale 1ns / 10ps
-//synopsys translate_on
+module div_uu(
+	input 				  clk, // system clock
+	input 				  ena, // clock enable
 
-module div_uu(clk, ena, z, d, q, s, div0, ovf);
+	input  [z_width -1:0] z, // divident
+	input  [d_width -1:0] d, // divisor
+	output [d_width -1:0] q, // quotient
+	output [d_width -1:0] s, // remainder
+	output 				  div0,
+	output                ovf
+);
 
-	//
-	// parameters
-	//
 	parameter z_width = 16;
 	parameter d_width = z_width /2;
-	
-	//
-	// inputs & outputs
-	//
-	input clk;               // system clock
-	input ena;               // clock enable
 
-	input  [z_width -1:0] z; // divident
-	input  [d_width -1:0] d; // divisor
-	output [d_width -1:0] q; // quotient
-	output [d_width -1:0] s; // remainder
-	output div0;
-	output ovf;
 	reg [d_width-1:0] q;
 	reg [d_width-1:0] s;
 	reg div0;
 	reg ovf;
 
-	//	
-	// functions
-	//
-	function [z_width:0] gen_s;
-		input [z_width:0] si;
-		input [z_width:0] di;
-	begin
-	  if(si[z_width])
-	    gen_s = {si[z_width-1:0], 1'b0} + di;
-	  else
-	    gen_s = {si[z_width-1:0], 1'b0} - di;
-	end
-	endfunction
-
-	function [d_width-1:0] gen_q;
-		input [d_width-1:0] qi;
-		input [z_width:0] si;
-	begin
-	  gen_q = {qi[d_width-2:0], ~si[z_width]};
-	end
-	endfunction
-
-	function [d_width-1:0] assign_s;
-		input [z_width:0] si;
-		input [z_width:0] di;
-		reg [z_width:0] tmp;
-	begin
-	  if(si[z_width])
-	    tmp = si + di;
-	  else
-	    tmp = si;
-
-	  assign_s = tmp[z_width-1:z_width-d_width];
-	end
-	endfunction
-
-	//
-	// variables
-	//
 	reg [d_width-1:0] q_pipe  [d_width-1:0];
 	reg [z_width:0] s_pipe  [d_width:0];
 	reg [z_width:0] d_pipe  [d_width:0];
 
 	reg [d_width:0] div0_pipe, ovf_pipe;
-	//
+
+	reg [z_width:0] tmp;
+	
 	// perform parameter checks
-	//
-	// synopsys translate_off
-	initial
-	begin
-	  if(d_width !== z_width / 2)
-	    $display("div.v parameter error (d_width != z_width/2).");
-	end
-	// synopsys translate_on
 
 	integer n0, n1, n2, n3;
 
@@ -146,7 +88,7 @@ module div_uu(clk, ena, z, d, q, s, div0, ovf);
 	always @(posedge clk)
 	  if(ena)
 	    for(n0=1; n0 <= d_width; n0=n0+1)
-	       d_pipe[n0] <= #1 d_pipe[n0-1];
+	       d_pipe[n0] <= d_pipe[n0-1];
 
 	// generate internal remainder pipe
 	always @(z)
@@ -154,18 +96,22 @@ module div_uu(clk, ena, z, d, q, s, div0, ovf);
 
 	always @(posedge clk)
 	  if(ena)
-	    for(n1=1; n1 <= d_width; n1=n1+1)
-	       s_pipe[n1] <= #1 gen_s(s_pipe[n1-1], d_pipe[n1-1]);
+	    for(n1=1; n1 <= d_width; n1=n1+1) begin
+			if(s_pipe[n1-1][z_width])
+				s_pipe[n1] <= {s_pipe[n1-1][z_width-1:0], 1'b0} + d_pipe[n1-1];
+			else
+				s_pipe[n1] <= {s_pipe[n1-1][z_width-1:0], 1'b0} - d_pipe[n1-1];
+		end
 
 	// generate quotient pipe
 	always @(posedge clk)
-	  q_pipe[0] <= #1 0;
+	  q_pipe[0] <= 0;
 
 	always @(posedge clk)
 	  if(ena)
-	    for(n2=1; n2 < d_width; n2=n2+1)
-	       q_pipe[n2] <= #1 gen_q(q_pipe[n2-1], s_pipe[n2]);
-
+	    for(n2=1; n2 < d_width; n2=n2+1) begin
+			q_pipe[n2] <= {q_pipe[n2-1][d_width-2:0], ~s_pipe[n2][z_width]};
+		end
 
 	// flags (divide_by_zero, overflow)
 	always @(z or d)
@@ -178,27 +124,30 @@ module div_uu(clk, ena, z, d, q, s, div0, ovf);
 	  if(ena)
 	    for(n3=1; n3 <= d_width; n3=n3+1)
 	    begin
-	        ovf_pipe[n3] <= #1 ovf_pipe[n3-1];
-	        div0_pipe[n3] <= #1 div0_pipe[n3-1];
+	        ovf_pipe[n3] <= ovf_pipe[n3-1];
+	        div0_pipe[n3] <= div0_pipe[n3-1];
 	    end
 
 	// assign outputs
 	always @(posedge clk)
 	  if(ena)
-	    ovf <= #1 ovf_pipe[d_width];
+	    ovf <= ovf_pipe[d_width];
 
 	always @(posedge clk)
 	  if(ena)
-	    div0 <= #1 div0_pipe[d_width];
+	    div0 <= div0_pipe[d_width];
 
 	always @(posedge clk)
-	  if(ena)
-	    q <= #1 gen_q(q_pipe[d_width-1], s_pipe[d_width]);
+	  if(ena) begin
+		q <= {q_pipe[d_width-1][d_width-2:0], ~s_pipe[d_width][z_width]};
+	  end
 
 	always @(posedge clk)
-	  if(ena)
-	    s <= #1 assign_s(s_pipe[d_width], d_pipe[d_width]);
+	  if(ena) begin
+		if(s_pipe[d_width][z_width])
+			tmp = s_pipe[d_width] + d_pipe[d_width];
+		else
+			tmp = s_pipe[d_width];
+		s <= tmp[z_width-1:z_width-d_width];
+	  end
 endmodule
-
-
-

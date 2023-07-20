@@ -1,25 +1,26 @@
 `include "defines.vh"
 module hilo(
-input  wire                  clk,
-input  wire                  rst,
-input  wire                  hi_write_enable_i,
-input  wire  [`GPR_BUS]      hi_write_data_i,
-input  wire                  lo_write_enable_i,
-input  wire  [`GPR_BUS]      lo_write_data_i,
-input  wire                  hilo_read_addr_i,   //can be "0" or "1" only
-output wire  [`GPR_BUS]      hilo_read_data_o
+    input                    clk,
+    input                    rst,
+    input                    hi_write_enable_i,
+    input    [31:0]          hi_write_data_i,
+    input                    lo_write_enable_i,
+    input    [31:0]          lo_write_data_i,
+    input                    hilo_read_addr_i,   //can be "0" or "1" only
+    output   [31:0]          hilo_read_data_o
 );
 
-reg [`GPR_BUS] hi;
-reg [`GPR_BUS] lo;
+reg [31:0] hi;
+reg [31:0] lo;
 
 // addr = 1 indicates select high
 assign hilo_read_data_o = (hilo_read_addr_i == 1'b1) ? (hi_write_enable_i ? hi_write_data_i : hi ): (lo_write_enable_i ? lo_write_data_i : lo);
 always @ (posedge clk) begin
-    if(rst == `RST_ENABLE) begin
-        hi <= `ZEROWORD32;
-        lo <= `ZEROWORD32;
-    end else begin
+    if(rst == 1'b0) begin
+        hi <= 32'b0;
+        lo <= 32'b0;
+    end 
+    else begin
         if(hi_write_enable_i == 1'b1)
             hi <= hi_write_data_i;
         if(lo_write_enable_i == 1'b1)

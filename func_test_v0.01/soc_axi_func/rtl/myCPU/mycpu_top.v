@@ -45,8 +45,6 @@ Arch:
 NOTE: 1. inst only read, data both read and write.
 2. for read, through axi_cache_merge; for write (only data, no need to merge), directly.
 */
-`define _TEST
-
 module mycpu_top
 (
     input  [5 :0] ext_int      , 
@@ -94,12 +92,12 @@ module mycpu_top
     input         bvalid       ,
     output        bready       ,
     
-   output [31:0] debug_wb_pc       , 
-   output [3:0]  debug_wb_rf_wen   ,
-   output [4:0]  debug_wb_rf_wnum  ,
-   output [31:0] debug_wb_rf_wdata 
+    output [31:0] debug_wb_pc       , 
+    output [3:0]  debug_wb_rf_wen   ,
+    output [4:0]  debug_wb_rf_wnum  ,
+    output [31:0] debug_wb_rf_wdata 
 );
-`ifndef TEST begin
+
 wire [5 :0] int;
 
 assign int = ext_int;
@@ -218,8 +216,7 @@ wire        data_cache_bridge_rlast;
 wire        data_cache_bridge_rvalid;
 wire        data_cache_bridge_rready;
 
-inst_cache  inst_cache_module
-(
+inst_cache  inst_cache_module(
 .rst            (aresetn),
 .clk            (aclk),
 .flush          (is_flush),
@@ -239,8 +236,7 @@ inst_cache  inst_cache_module
 .s_rvalid       (inst_valid)
 );
 
-data_cache_fifo data_cache_fifo_module
-(
+data_cache_fifo data_cache_fifo_module(
 .clk            (aclk),
 .rst            (aresetn),
 .cache_ena      (data_cache_ena),
@@ -284,8 +280,7 @@ data_cache_fifo data_cache_fifo_module
 .s_wready       (data_valid_w)
 );
 
-axi_cache_merge axi_cache_merge_module
-(
+axi_cache_merge axi_cache_merge_module(
 .inst_cache_ena(inst_cache_ena),
 .data_cache_ena(data_cache_ena),
 .inst_ren	   (is_inst_read),
@@ -324,11 +319,5 @@ axi_cache_merge axi_cache_merge_module
 .rvalid        (rvalid),
 .rready        (rready)
 );
-
-end
-
-`else 
-
-`endif
 
 endmodule

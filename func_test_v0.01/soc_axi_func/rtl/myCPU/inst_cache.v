@@ -1,5 +1,4 @@
 `include "defines.vh"
-
 module inst_cache(
     input         rst            ,
     input         clk            ,
@@ -123,7 +122,7 @@ endtask
 
 integer index;
 always @(posedge clk) begin
-    if(rst == `RST_ENABLE) begin
+    if(rst == 1'b0) begin
         current_state <= IDLE;
         for (index = 0;index < 2;index = index + 1) begin
             v[index] <= {128{1'b0}};
@@ -138,8 +137,8 @@ always @(posedge clk) begin
 
         read_count <= 3'd0;
         data_at_write_back <= 32'h0000_0000;
-
-    end else begin
+    end 
+    else begin
         case (current_state)
             IDLE: begin
                 if(!flush) begin
@@ -252,24 +251,7 @@ endgenerate
 // assume the cpu get data from cache in 1 cycle, so don't have a reg to wait
 // if hit, the cpu get data at COMP_TAG state
 // else, the cpu get data at WRITE_BACK state
-assign s_rvalid =
-    ((current_state == COMP_TAG) && (|hit)) ?
-        1'b1
-    :
-        ((current_state == WRITE_BACK) ?
-            1'b1
-        :
-            1'b0);
-assign s_rdata = 
-    (current_state == COMP_TAG && (|hit)) ?
-        ((hit[0] == 1'b1) ? 
-            data_rdata[0][offset_req]
-        :
-            data_rdata[1][offset_req])
-    :
-        ((current_state == WRITE_BACK) ? 
-            data_at_write_back
-        :
-            {32{1'b0}});
+assign s_rvalid = ((current_state == COMP_TAG) && (|hit)) ? 1'b1:((current_state == WRITE_BACK) ? 1'b1:1'b0);
+assign s_rdata = (current_state == COMP_TAG && (|hit)) ? ((hit[0] == 1'b1) ? data_rdata[0][offset_req] : data_rdata[1][offset_req]) : ((current_state == WRITE_BACK) ? data_at_write_back : {32{1'b0}});
 
 endmodule

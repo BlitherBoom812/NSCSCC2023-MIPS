@@ -1,32 +1,3 @@
-// common
-`define RST_ENABLE     1'b0
-`define RST_DISABLE    1'b1
-`define STOP           1'b1           // stop
-`define NOSTOP         1'b0           // no stop
-`define BRANCH_ENABLE  1'b1           // branch
-`define BRANCH_DISABLE 1'b0           // no branch
-`define ZEROWORD32     32'h00000000
-`define ZEROWORD5      5'b00000
-
-// aluop
-`define ALUOP_BUS      7:0
-`define ALUOP_WIDTH    8
-
-// instruction
-`define INST_ADDR_BUS  31:0
-`define INST_BUS       31:0
-`define INST_WIDTH     32
-
-// GPR
-`define GPR_BUS        31:0
-`define GPR_ADDR_BUS   4:0
-`define GPR_WIDTH      32
-
-// cp0
-`define CP0_BUS        31:0
-`define CP0_ADDR_BUS   4:0
-`define CP0_WIDTH      32
-
 //cause reg
 `define EXL             1
 `define ERL             2
@@ -48,14 +19,7 @@
 `define IM2             10
 `define IM1             9
 
-
 // exception
-`define EXCEPTION_ON   1'b1           // exception
-`define EXCEPTION_OFF  1'b0           // no exception
-`define EXCEP_TYPE_BUS 31:0
-`define EXCEP_CODE_BUS 4:0
-`define EXCEP_TYPE_WIDTH 32
-
 `define EXCEP_CODE_INT  5'h0          // interrupt
 `define EXCEP_CODE_ADEL 5'h4          // pc fetch or lw addr error
 `define EXCEP_CODE_ADES 5'h5          // sw addr 
@@ -65,10 +29,6 @@
 `define EXCEP_CODE_OV   5'hc          // overflow      
 `define EXCEP_CODE_TR   5'hd          // trap
 `define EXCEP_CODE_ERET 5'h1f         // eret treated as exception
-
-// ram
-`define RAM_ADDR_BUS   31:0
-`define RAM_ADDR_WIDTH 32
 
 // ID select
 `define ID_AND     6'b100100
@@ -126,6 +86,7 @@
 `define ID_MFLO    6'b010010
 `define ID_MTLO    6'b010011
 `define ID_ERET    32'b01000010000000000000000000011000
+
 // EXE ALU select mapping
 `define ALUOP_ADD     8'b00000000
 `define ALUOP_ADDI    8'b00000001
@@ -269,3 +230,5 @@
 `define addr_byte0_14   40:33
 `define addr_byte0_15   8:1
 
+//cache config
+`define INST_BURST_NUM 8'h7
