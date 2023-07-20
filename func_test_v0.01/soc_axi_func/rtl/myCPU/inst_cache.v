@@ -137,7 +137,6 @@ always @(posedge clk) begin
 
         read_count <= 3'd0;
         data_at_write_back <= 32'h0000_0000;
-
     end 
     else begin
         case (current_state)

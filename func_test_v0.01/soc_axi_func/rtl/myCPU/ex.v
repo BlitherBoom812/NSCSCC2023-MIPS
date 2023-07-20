@@ -92,7 +92,7 @@ assign hilo_data_forward = get_hilo_data_forward(hilo_data_i, hilo_read_addr_i,
                                                 bypass_mem_lo_write_enable_i, bypass_mem_lo_write_data_i,
                                                 bypass_wb_hi_write_enable_i, bypass_wb_hi_write_data_i,
                                                 bypass_wb_lo_write_enable_i, bypass_wb_lo_write_data_i);
-    
+
 function [31:0] get_hilo_data_forward(input [31:0] hilo_data, input hilo_read_addr, input bypass_mem_hi_write_enable,
                                       input [31:0] bypass_mem_hi_write_data, input bypass_mem_lo_write_enable,
                                       input [31:0] bypass_mem_lo_write_data, input bypass_wb_hi_write_enable,
@@ -111,15 +111,7 @@ function [31:0] get_hilo_data_forward(input [31:0] hilo_data, input hilo_read_ad
     end
 endfunction
 
-assign cp0_data_forward = get_cp0_data_forward(cp0_data_i, cp0_read_addr_i,bypass_mem_cp0_write_enable_i, bypass_mem_cp0_write_addr_i, bypass_mem_cp0_write_data_i);
-
-function [31:0] get_cp0_data_forward(input [31:0] cp0_data, input [4:0] cp0_read_addr, input bypass_mem_cp0_write_enable, input [4:0] bypass_mem_cp0_write_addr, input [31:0] bypass_mem_cp0_write_data);
-    begin
-        get_cp0_data_forward = cp0_data;        
-        if (bypass_mem_cp0_write_enable == 1 && bypass_mem_cp0_write_addr == cp0_read_addr)
-            get_cp0_data_forward = bypass_mem_cp0_write_data;
-    end
-endfunction
+assign cp0_data_forward = (bypass_mem_cp0_write_enable_i == 1 && bypass_mem_cp0_write_addr_i == cp0_read_addr_i) ? bypass_mem_cp0_write_data_i : cp0_data_i;
     
 always @ (*) begin
     if (rst == 1'b0) begin

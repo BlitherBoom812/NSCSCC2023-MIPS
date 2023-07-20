@@ -50,12 +50,12 @@ assign result = {dremain, dquotient};
 
 always @(posedge clock) begin
     if (reset == 1'b0) 
-        div_stage <= 'b0;
+        div_stage <= 1'b0;
     else if(!start)
-        div_stage <= 'b0;
-    else if(div_stage != 'b0)
+        div_stage <= 1'b0;
+    else if(div_stage != 1'b0)
         div_stage <= div_stage >> 1; 
 	else
-        div_stage <= 'b1 << (DIV_CYCLES-1);
+        div_stage <= 1'b1 << (DIV_CYCLES-1);
 end
 endmodule

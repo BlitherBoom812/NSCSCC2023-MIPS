@@ -54,7 +54,7 @@ begin
             cp0_read_data_o = cp0_cause;
         5'd14: //epc:
             cp0_read_data_o = cp0_epc;
-         default:
+        default:
             cp0_read_data_o = 32'h0;
     endcase
     end
@@ -99,7 +99,7 @@ begin
         end
         else 
             timer_int = 0;
-            if(exception_type_i[31] == 1'b1) begin 
+        if(exception_type_i[31] == 1'b1) begin 
             if(cp0_status[`EXL] ==0) begin
                 if(now_in_delayslot_i == 1'b1) begin
                     cp0_epc = pc_i - 4;
@@ -238,7 +238,7 @@ begin
                 5'd13: cp0_cause[9:8] = cp0_write_data_i[9:8];
                 5'd14: cp0_epc = cp0_write_data_i;
             endcase
-        if( cp0_cause[15:8] & cp0_status[15:8])
+        if( cp0_cause[15:8] & cp0_status[15:8]) begin
             if(cp0_status[`EXL] ==0) begin
                 if(now_in_delayslot_i == 1'b1) begin
                     cp0_epc = pc_i;
@@ -250,10 +250,11 @@ begin
                 end
                 flush = 1'b1;
             end
-        else flush = 1'b0;
-        cp0_status[`EXL] = 1;
-        cp0_return_pc = 32'hbfc0_0380;    
-        cp0_cause[6:2] = `EXCEP_CODE_INT;
+            else flush = 1'b0;
+            cp0_status[`EXL] = 1;
+            cp0_return_pc = 32'hbfc0_0380;    
+            cp0_cause[6:2] = `EXCEP_CODE_INT;
+        end
         cp0_return_pc_o <= cp0_return_pc;
         timer_int_o <= timer_int;
         flush_o <=  flush;

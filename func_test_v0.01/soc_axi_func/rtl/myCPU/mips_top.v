@@ -1,11 +1,11 @@
 `include "defines.vh"
 module mips_top(
-    input           clk,
-    input           rst,
+    input               clk,
+    input               rst,
     
-    input[5:0]   interrupt,
-    output          time_int_out,
-    output[31:0]      inst_sram_addr,
+    input[5:0]          interrupt,
+    output              time_int_out,
+    output[31:0]        inst_sram_addr,
     input   [31:0]      inst_sram_rdata,
     
     output              data_sram_ren,
@@ -19,8 +19,8 @@ module mips_top(
     output  [4:0]       debug_wb_num,
     output  [31:0]      debug_wb_data,
     
-    input           inst_stall,
-    input           data_stall,
+    input               inst_stall,
+    input               data_stall,
     output              flush
 );
 
@@ -474,7 +474,7 @@ hilo mips_hilo(
 cp0 mips_cp0(
     .clk(clk),
     .rst(rst),
-    .cp0_read_addr_i(id_cp0_read_addr_id_ex),   //maybe problems
+    .cp0_read_addr_i(id_cp0_read_addr_id_ex), 
     .cp0_write_enable_i(mem_cp0_write_enable),
     .cp0_write_addr_i(mem_cp0_write_addr),
     .cp0_write_data_i(mem_cp0_write_data),

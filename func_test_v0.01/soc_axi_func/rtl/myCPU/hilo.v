@@ -3,11 +3,11 @@ module hilo(
     input                    clk,
     input                    rst,
     input                    hi_write_enable_i,
-    input    [31:0]      hi_write_data_i,
+    input    [31:0]          hi_write_data_i,
     input                    lo_write_enable_i,
-    input    [31:0]      lo_write_data_i,
+    input    [31:0]          lo_write_data_i,
     input                    hilo_read_addr_i,   //can be "0" or "1" only
-    output   [31:0]      hilo_read_data_o
+    output   [31:0]          hilo_read_data_o
 );
 
 reg [31:0] hi;
