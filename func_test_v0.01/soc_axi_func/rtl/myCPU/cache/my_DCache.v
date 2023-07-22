@@ -142,7 +142,6 @@ reg m_wvalid_r;
 // slave
 // s
 reg [31:0] s_rdata_r;
-reg s_rvalid_r;
 
 
 //-----------------------memory definition------------------------//
@@ -204,8 +203,11 @@ always @(posedge clk) begin
         m_wvalid_r <= 1'b0;
         m_wdata_r <= 32'h0000_0000;
 
+        m_arvalid_r <= 1'b0;
+
+        m_awvalid_r <= 1'b0;
+
         s_rdata_r <= 32'h0000_0000;
-        s_rvalid_r <= 1'b0;
 
         cached <= 1'b0;
         read_count <= 3'd0;
@@ -241,7 +243,7 @@ always @(posedge clk) begin
             COMP_TAG: begin
                 if (|hit) begin
                     // if hit: for read, it updates lru and goes back to IDLE; for write, it updates lru, data ram and goes to IDLE.
-                    lru[addr_req_r[11:5]] <= (hit[0] == 1'b1) ? 1'b0 : 1'b1;    
+                    lru[index_req] <= (hit[0] == 1'b1) ? 1'b0 : 1'b1;    
                     if (arvalid_req == 1'b1) begin
                         current_state <= IDLE;                     
                     end else if (|awvalid_req == 1'b1) begin
@@ -249,7 +251,7 @@ always @(posedge clk) begin
                     end
                 end else begin
                     // if not hit: for read, it sends addr and goes to READ_MEM; for write, it sends addr and goes to READ_MEM; also, it handles the write through process.
-                    lru[addr_req_r[11:5]] <= ~lru[addr_req_r[11:5]];
+                    lru[index_req] <= ~lru[index_req];
                     // for read work
                     current_state <= READ_MEM;
                     read_count <= 3'd0;
@@ -288,7 +290,7 @@ always @(posedge clk) begin
                     if (m_rvalid) begin
                         read_count <= read_count + 1;
                         // if axi outputs data needed, then put it into data_at_refill, and send to s_rdata at REFILL
-                        if (read_count == addr_req_r[4:2]) begin
+                        if (read_count == offset_req) begin
                             data_at_refill <= m_rdata;
                         end
                         // write data to data ram (see assign)
@@ -320,10 +322,18 @@ always @(posedge clk) begin
                         end
                     end
                     // transition
-                    if ((read_state == 2'b10) && (write_state == 2'b10)) begin
-                        current_state <= REFILL;
-                        read_state <= 2'b00;
-                        write_state <= 2'b00;
+                    if (((|awvalid_req == 1'b1)) && (arvalid_req == 1'b0)) begin    // write mode
+                        if ((read_state == 2'b10) && (write_state == 2'b10)) begin
+                            current_state <= REFILL;
+                            read_state <= 2'b00;
+                            write_state <= 2'b00;
+                        end
+                    end else if((|awvalid_req == 1'b0) && (arvalid_req == 1'b1)) begin  // read mode
+                        if ((read_state == 2'b10)) begin
+                            current_state <= REFILL;
+                            read_state <= 2'b00;
+                            write_state <= 2'b00;
+                        end
                     end
                 end else begin
                     // handshake
@@ -390,7 +400,7 @@ assign m_arvalid = m_arvalid_r;
 assign m_rready = (current_state == READ_MEM) ? 1'b1 : 1'b0;
 
 // calculate addr, tag, index, offset, data
-assign addr_req = (current_state == IDLE) ? s_araddr : addr_req_r;
+assign addr_req = (current_state == IDLE) ? s_addr : addr_req_r;
     assign tag_req = addr_req[31:12];
     assign index_req = addr_req[11:5];
     assign offset_req = addr_req[4:2];
@@ -504,4 +514,4 @@ assign s_wready =
         1'b1
     :
         1'b0;
-endmodule;
+endmodule
