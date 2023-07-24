@@ -50,7 +50,7 @@ begin
     else get_arlen = 8'h00; 
 end
 endfunction*/
-    assign arlen        = inst_ren ? (inst_cache_ena ? `INST_BURST_NUM : 8'h00) : (data_ren ? (data_cache_ena ? 8'h0f : 8'h00) : 8'h00);
+    assign arlen        = inst_ren ? (inst_cache_ena ? `INST_BURST_NUM : 8'h00) : (data_ren ? (data_cache_ena ? `DATA_BURST_NUM : 8'h00) : 8'h00);
     assign arid         = 4'b0000;
     assign arsize       = 3'b010;
     assign arburst      = inst_ren ? (inst_cache_ena ? 2'b01 : 2'b00) : (data_ren ? (data_cache_ena ? 2'b01 : 2'b00) : 2'b00);
