@@ -3,14 +3,16 @@
 `include "defines.vh"
 
 
-`define LINE_OFFSET_WIDTH 6 // For data_cache is 6 (2^6 Bytes = 64 Bytes = 16 words per line); For my_ICache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
-`define SEND_NUM 8 // For data_cache is 8; For my_DCache, is 4
+`define LINE_OFFSET_WIDTH 5 // For data_cache is 6 (2^6 Bytes = 64 Bytes = 16 words per line); For my_DCache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
+`define SEND_NUM 8 // (The num of words) For data_cache is 16; For my_DCache, is 8
+
+`define TEST_REQ_NUM 4'd12
 
 module tb_data_cache_fifo ();
 
 
     // top parameters
-    parameter [6:0] SEND_NUM = `SEND_NUM;
+    // parameter [6:0] SEND_NUM = `SEND_NUM;
 
     // data_cache_fifo Parameters
     parameter PERIOD = 10;
@@ -119,18 +121,16 @@ module tb_data_cache_fifo ();
     );
 
 
-    // goal: test icache
+    // goal: test dcache
     // 1. verify testbench correctness (ok)
     // 1.1 test basic cache function (ok)
     // 1.2 test flush function: if flush, the cpu req state goes back to turn_on(ok)
     // (p.s the 1.2 will be useful when optimizing the sram_interface. 我们可以区分热启动和冷启动，冷启动时损失一个周期，热启动时不损失周期。)
-    // 1.3 测试行替换功能(ok)
-    // 2. test the new data cache
-    // 2.1 test basic cache function (ok)
-    // 2.2 test cache_ena (ok)
-    // 2.3 eliminate x & z (ok);
-    // 2.4 bug: 7th data error!. outputs 32'hf0000054. but 8th is right. reason: the problem of addr_req_r and s_addr.
-    // cpu simulation
+    // 2. test new dcache
+    // 2.1 test read process(ok)
+    // 2.2 test write process
+    // 2.3 test read after write, and write after read
+
     reg     [3:0] data_req_count;  // count the number of data request now
     reg     [2:0] cpu_state;
     integer       data_fetch_cycle;  // calculate the cycles cost by one data.
@@ -143,6 +143,7 @@ module tb_data_cache_fifo ();
     parameter [2:0] state_wait_data_write = 3'b101;
 
     assign cache_ena = s_addr[31];
+    // assign  cache_ena = 1'b1;
     assign flush     = s_arvalid && (s_addr == 32'hffff_ffff);
 
     initial begin
@@ -156,15 +157,18 @@ module tb_data_cache_fifo ();
     task set_data_addr();
         begin
             case (data_req_count)
-                0: s_addr <= 32'hf000_0000;
-                1: s_addr <= 32'hf000_0004;
-                2: s_addr <= 32'hf000_0008;
-                3: s_addr <= 32'hf000_000C;
-                4: s_addr <= 32'hf000_0040;
-                5: s_addr <= 32'hf000_0044;
-                6: s_addr <= 32'hffff_ffff;
-                7: s_addr <= 32'hf000_0014;
-                8: s_addr <= 32'hf000_0018;
+                0: s_addr <= 32'hf000_0000; // long
+                1: s_addr <= 32'hb000_0004; // long
+                2: s_addr <= 32'hf000_0008; // short
+                3: s_addr <= 32'ha000_000C; // long
+                4: s_addr <= 32'hf000_000C; // short
+                5: s_addr <= 32'hb000_0004; // long
+                6: s_addr <= 32'hffff_ffff; // flush
+                7: s_addr <= 32'hf000_0014; // short
+                8: s_addr <= 32'hb000_0018; // short
+                9: s_addr <= 32'h0000_0004; // long
+                10: s_addr <= 32'h0000_0008; // long
+                11: s_addr <= 32'h0000_0024; // long
                 default: s_addr <= 32'hf000_0000;
             endcase
             data_req_count   <= data_req_count + 1;
@@ -208,7 +212,7 @@ module tb_data_cache_fifo ();
                     end
                 end
                 state_req: begin
-                    if (data_req_count == 4'd10) begin
+                    if (data_req_count == `TEST_REQ_NUM + 1) begin
                         $display("fetch data done");
                         $finish;
                     end else begin
@@ -269,23 +273,26 @@ module tb_data_cache_fifo ();
                     end
                 end
                 RAM_READ: begin
-                    if (m_arvalid == 1'b0) begin
-                        m_arready <= 1'b0;
-                        m_rdata   <= {m_araddr_reg[31:`LINE_OFFSET_WIDTH], send_count << 2};
-                        if (send_count == SEND_NUM - 1) begin
-                            m_rlast    <= 1'b1;
-                            m_rvalid   <= 1'b1;
-                            send_count <= send_count + 1;
-                        end else if (send_count == SEND_NUM) begin
-                            m_rlast    <= 1'b0;
-                            m_rvalid   <= 1'b0;
-                            send_count <= 0;
-                            ram_state  <= RAM_IDLE;
-                        end else begin
-                            m_rlast    <= 1'b0;
-                            m_rvalid   <= 1'b1;
-                            send_count <= send_count + 1;
+                    if (cache_ena) begin
+                        if (m_arvalid == 1'b0) begin
+                            m_arready <= 1'b0;
+                            m_rdata   <= {m_araddr_reg[31:`LINE_OFFSET_WIDTH], send_count << 2};
+                            if (send_count == (`SEND_NUM - 1)) begin
+                                m_rlast    <= 1'b1;
+                                m_rvalid   <= 1'b1;
+                                send_count <= send_count + 1;
+                            end else if (send_count == `SEND_NUM) begin
+                                m_rlast    <= 1'b0;
+                                m_rvalid   <= 1'b0;
+                                send_count <= 0;
+                                ram_state  <= RAM_IDLE;
+                            end else begin
+                                m_rlast    <= 1'b0;
+                                m_rvalid   <= 1'b1;
+                                send_count <= send_count + 1;
+                            end
                         end
+                    end else begin
                     end
                 end
             endcase

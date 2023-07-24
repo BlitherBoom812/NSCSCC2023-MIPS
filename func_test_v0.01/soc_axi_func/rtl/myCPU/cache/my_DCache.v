@@ -360,10 +360,18 @@ always @(posedge clk) begin
                         write_state <= 2'b10;
                     end
                     // transition
-                    if ((read_state == 2'b10) && (write_state == 2'b10)) begin
-                        current_state <= REFILL;
-                        read_state <= 2'b00;
-                        write_state <= 2'b00;
+                    if (((|awvalid_req == 1'b1)) && (arvalid_req == 1'b0)) begin    // write mode
+                        if ((read_state == 2'b10) && (write_state == 2'b10)) begin
+                            current_state <= REFILL;
+                            read_state <= 2'b00;
+                            write_state <= 2'b00;
+                        end
+                    end else if((|awvalid_req == 1'b0) && (arvalid_req == 1'b1)) begin  // read mode
+                        if ((read_state == 2'b10)) begin
+                            current_state <= REFILL;
+                            read_state <= 2'b00;
+                            write_state <= 2'b00;
+                        end
                     end
                 end
             end
