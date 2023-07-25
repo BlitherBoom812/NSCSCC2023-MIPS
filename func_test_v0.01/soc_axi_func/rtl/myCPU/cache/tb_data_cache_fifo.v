@@ -6,7 +6,7 @@
 `define LINE_OFFSET_WIDTH 6 // For data_cache is 6 (2^6 Bytes = 64 Bytes = 16 words per line); For my_DCache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
 `define SEND_NUM 16 // (The num of words) For data_cache is 16; For my_DCache, is 8
 
-`define TEST_REQ_NUM 8'd12
+`define TEST_REQ_NUM 8'd20
 
 // PROBLEM: no implementation of full read & write(configuration about awlen, etc.)
 
@@ -127,7 +127,9 @@ module tb_data_cache_fifo ();
     // 1. verify testbench correctness (ok)
     // 1.1 test basic cache function (ok)
     // 1.2 test flush function: if flush, the cpu req state goes back to turn_on(ok)
-    // (p.s the 1.2 will be useful when optimizing the sram_interface. 我们可以区分热启动和冷启动，冷启动时损失一个周期，热启动时不损失周期。)
+    // 1.3 test RAW, WAR, HALF WORD, BYTE, etc. (ok)
+    // (p.s the 1.2 will be useful when optimizing the sram_interface. 我们可以区分热启动和冷启动，冷启动时损失一个周期，热启动时不损失周期。
+    // 该计划已摆烂。)
     // 2. test new dcache
     // 2.1 test read process(ok)
     // 2.2 test write process
@@ -179,22 +181,34 @@ module tb_data_cache_fifo ();
         begin
             case (data_req_count)
                 // read
-                0:       s_addr <= 32'hf000_0000;  
-                1:       s_addr <= 32'hb000_0004;  
+                0:       s_addr <= 32'hf000_0000;
+                1:       s_addr <= 32'hf000_0004;
                 // write
                 // read after write
-                2:      s_addr <= 32'hff00_0000 + 1;  
-                3:      s_addr <= 32'hff00_0000;  
+                2:       s_addr <= 32'hff00_0004 + 1;
+                3:       s_addr <= 32'hff00_0004;
                 // write after read
-                4:      s_addr <= 32'hff00_0000;  
-                5:      s_addr <= 32'hff10_0000 + 1;  
+                4:       s_addr <= 32'hff10_0000;
+                5:       s_addr <= 32'hff10_0000 + 1;
                 // replace
-                6:      s_addr <= 32'hff20_0000 + 1;  
-                7:      s_addr <= 32'hff30_0000 + 1;  
-                8:      s_addr <= 32'hff40_0000 + 1;  
-                9:      s_addr <= 32'hff40_0000;  
+                6:       s_addr <= 32'hff20_0000 + 1;
+                7:       s_addr <= 32'hff30_0000 + 1;
+                8:       s_addr <= 32'hff40_0000 + 1;
+                9:       s_addr <= 32'hff00_0000;
+                // half word
                 10:      s_addr <= 32'hfc10_0000 + 1;
-                11:      s_addr <= 32'hfc10_0000;              
+                11:      s_addr <= 32'hfc10_0000;
+                // byte
+                12:      s_addr <= 32'hf100_0014 + 1;
+                13:      s_addr <= 32'hf100_0014;
+                // flush
+                14:      s_addr <= 32'hffff_ffff;
+                15:      s_addr <= 32'hf100_0014;
+                // read something to clear dirty data
+                16:     s_addr <= 32'hf000_0000;
+                17:     s_addr <= 32'he000_0000;
+                18:     s_addr <= 32'hd000_0000;
+                19:     s_addr <= 32'hc000_0000;
                 default: s_addr <= 32'hf000_0000;
             endcase
             data_req_count   <= data_req_count + 1;
@@ -252,8 +266,8 @@ module tb_data_cache_fifo ();
                 end
                 state_req: begin
                     if (data_req_count == `TEST_REQ_NUM + 1) begin
-                        $display("accessing data done, inst num: %d", data_req_count);
-                        for (i = 0;i < ram_top;i = i + 1) begin
+                        $display("accessing data done, inst num: %d", data_req_count - 1);
+                        for (i = 0; i < ram_top; i = i + 1) begin
                             $display("mem[%h] = %h", ram_address[i], ram_data[i]);
                         end
                         $finish;
@@ -265,15 +279,19 @@ module tb_data_cache_fifo ();
                             if (s_wready) begin
                                 $display("write data[%h]: %h, time consuming: %d cycles", {s_addr[31:2], 2'b00}, {(s_addr[27] == 1'b1) ? s_wdata[31:24] : 8'hzz, (s_addr[26] == 1'b1) ? s_wdata[23:16] : 8'hzz, (s_addr[25] == 1'b1) ? s_wdata[15:8] : 8'hzz, (s_addr[24] == 1'b1) ? s_wdata[7:0] : 8'hzz},
                                          data_fetch_cycle);
+                                s_arvalid <= 1'b0;
+                                s_awvalid <= 0;
                                 cpu_state <= state_turn_on;
                             end else if (s_rvalid == 1'b1) begin
                                 $display("read data[%h]: %h, time consuming: %d cycles", {s_addr[31:2], 2'b00}, s_rdata, data_fetch_cycle);
+                                s_arvalid        <= 1'b0;
+                                s_awvalid        <= 0;
                                 cpu_state        <= state_turn_on;
                                 data_fetch_cycle <= 0;
                             end else begin
                                 if (data_fetch_cycle > 0) begin
-                                    s_arvalid <= 1'b0;
-                                    s_awvalid <= 0;
+                                    // s_arvalid <= 1'b0;
+                                    // s_awvalid <= 0;
                                 end
                             end
                         end
@@ -321,7 +339,7 @@ module tb_data_cache_fifo ();
             revised  = check_revised(address);
             read_ram = (revised[32] == 1'b1) ? ram_data[revised[31:0]] : address;
             if (revised[32] == 1'b1) begin
-                $display("read mem data[%h]: %h, revised: %d", address, read_ram, revised[32]);
+                // $display("read mem data[%h]: %h, revised: %d", address, read_ram, revised[32]);
             end
         end
     endfunction
@@ -333,14 +351,14 @@ module tb_data_cache_fifo ();
             revised = check_revised(address);
             index   = revised[31:0];
             if (revised[32] == 1'b0) begin
-                ram_data[ram_top] = {(wen[3] == 1'b1) ? wdata[31:24] : ram_data[ram_top][31:24], (wen[2] == 1'b1) ? wdata[23:16] : ram_data[ram_top][23:16], (wen[1] == 1'b1) ? wdata[15:8] : ram_data[ram_top][15:8], (wen[0] == 1'b1) ? wdata[7:0] : ram_data[ram_top][7:0]};
+                ram_data[ram_top]    = {(wen[3] == 1'b1) ? wdata[31:24] : ram_data[ram_top][31:24], (wen[2] == 1'b1) ? wdata[23:16] : ram_data[ram_top][23:16], (wen[1] == 1'b1) ? wdata[15:8] : ram_data[ram_top][15:8], (wen[0] == 1'b1) ? wdata[7:0] : ram_data[ram_top][7:0]};
                 // $display("revise mem data[%h]: %h, wen: %b", address, ram_data[ram_top], wen);
                 ram_address[ram_top] = address;
-                ram_top   = ram_top + 1;
-                write_ram = 1;
+                ram_top              = ram_top + 1;
+                write_ram            = 1;
             end else begin
                 ram_data[index] = {(wen[3] == 1'b1) ? wdata[31:24] : ram_data[index][31:24], (wen[2] == 1'b1) ? wdata[23:16] : ram_data[index][23:16], (wen[1] == 1'b1) ? wdata[15:8] : ram_data[index][15:8], (wen[0] == 1'b1) ? wdata[7:0] : ram_data[index][7:0]};
-                $display("revise mem data[%h]: %h, wen: %b", address, ram_data[index], wen);
+                // $display("revise mem data[%h]: %h, wen: %b", address, ram_data[index], wen);
                 write_ram = 0;
             end
         end
