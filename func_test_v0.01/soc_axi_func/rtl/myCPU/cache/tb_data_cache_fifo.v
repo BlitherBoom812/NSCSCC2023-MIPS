@@ -6,7 +6,9 @@
 `define LINE_OFFSET_WIDTH 6 // For data_cache is 6 (2^6 Bytes = 64 Bytes = 16 words per line); For my_DCache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
 `define SEND_NUM 16 // (The num of words) For data_cache is 16; For my_DCache, is 8
 
-`define TEST_REQ_NUM 8'd22
+`define TEST_REQ_NUM 8'd12
+
+// PROBLEM: no implementation of full read & write(configuration about awlen, etc.)
 
 module tb_data_cache_fifo ();
 
@@ -32,7 +34,7 @@ module tb_data_cache_fifo ();
     reg          m_rlast = 0;
     reg          m_rvalid = 0;
     reg          m_awready = 0;
-    reg          m_wready = 0;
+    reg          m_wready;
     reg          m_bvalid = 0;
     reg  [ 31:0] s_addr = 0;
     reg          s_arvalid = 0;
@@ -177,36 +179,22 @@ module tb_data_cache_fifo ();
         begin
             case (data_req_count)
                 // read
-                0:       s_addr <= 32'hf000_0000;  // long
-                1:       s_addr <= 32'hb000_0004;  // long
-                2:       s_addr <= 32'hf000_0008;  // short
-                3:       s_addr <= 32'ha000_000C;  // long
-                4:       s_addr <= 32'hf000_000C;  // short
-                5:       s_addr <= 32'hb000_0004;  // long
-                6:       s_addr <= 32'hffff_ffff;  // flush
-                7:       s_addr <= 32'hf000_0014;  // short
-                8:       s_addr <= 32'hb000_0018;  // short
-                9:       s_addr <= 32'h0000_0004;  // long
-                10:      s_addr <= 32'h0000_0008;  // long
-                11:      s_addr <= 32'h0000_0024;  // long
+                0:       s_addr <= 32'hf000_0000;  
+                1:       s_addr <= 32'hb000_0004;  
                 // write
                 // read after write
-                12:      s_addr <= 32'hff00_0000 + 1;  // long
-                13:      s_addr <= 32'hff00_0000;  // short
+                2:      s_addr <= 32'hff00_0000 + 1;  
+                3:      s_addr <= 32'hff00_0000;  
                 // write after read
-                14:      s_addr <= 32'hff10_0000;  // long
-                15:      s_addr <= 32'hff10_0000 + 1;  // short
-                // write same block
-                16:      s_addr <= 32'hff00_0004 + 1;  // short
-                // replace ff10_0000
-                17:      s_addr <= 32'hff20_0008 + 1;  // long
-                // replace ff00_0000
-                18:      s_addr <= 32'hff10_000C + 1;  // long
-                // check write through strategy
-                19:      s_addr <= 32'hff10_0000;  // short
-                // check write enable
-                20:      s_addr <= 32'hfe10_0000 + 1;  // long, wen <= 1110
-                21:      s_addr <= 32'hfe10_0000;  // short                
+                4:      s_addr <= 32'hff00_0000;  
+                5:      s_addr <= 32'hff10_0000 + 1;  
+                // replace
+                6:      s_addr <= 32'hff20_0000 + 1;  
+                7:      s_addr <= 32'hff30_0000 + 1;  
+                8:      s_addr <= 32'hff40_0000 + 1;  
+                9:      s_addr <= 32'hff40_0000;  
+                10:      s_addr <= 32'hfc10_0000 + 1;
+                11:      s_addr <= 32'hfc10_0000;              
                 default: s_addr <= 32'hf000_0000;
             endcase
             data_req_count   <= data_req_count + 1;
@@ -265,6 +253,9 @@ module tb_data_cache_fifo ();
                 state_req: begin
                     if (data_req_count == `TEST_REQ_NUM + 1) begin
                         $display("accessing data done, inst num: %d", data_req_count);
+                        for (i = 0;i < ram_top;i = i + 1) begin
+                            $display("mem[%h] = %h", ram_address[i], ram_data[i]);
+                        end
                         $finish;
                     end else begin
                         if (flush && (!flush_done)) begin
@@ -272,8 +263,8 @@ module tb_data_cache_fifo ();
                             cpu_state <= state_turn_on;
                         end else begin
                             if (s_wready) begin
-                                $display("write data[%h]: %h, time consuming: %d cycles", {s_addr[31:2], 2'b00}, {(s_awvalid[3] == 1'b1) ? s_wdata[31:24] : 8'bxx, (s_awvalid[2] == 1'b1) ? s_wdata[23:16] : 8'bxx, (s_awvalid[1] == 1'b1) ? s_wdata[15:8] : 8'bxx,
-                                                                                                                  (s_awvalid[0] == 1'b1) ? s_wdata[7:0] : 8'bxx}, data_fetch_cycle);
+                                $display("write data[%h]: %h, time consuming: %d cycles", {s_addr[31:2], 2'b00}, {(s_addr[27] == 1'b1) ? s_wdata[31:24] : 8'hzz, (s_addr[26] == 1'b1) ? s_wdata[23:16] : 8'hzz, (s_addr[25] == 1'b1) ? s_wdata[15:8] : 8'hzz, (s_addr[24] == 1'b1) ? s_wdata[7:0] : 8'hzz},
+                                         data_fetch_cycle);
                                 cpu_state <= state_turn_on;
                             end else if (s_rvalid == 1'b1) begin
                                 $display("read data[%h]: %h, time consuming: %d cycles", {s_addr[31:2], 2'b00}, s_rdata, data_fetch_cycle);
@@ -302,7 +293,6 @@ module tb_data_cache_fifo ();
     parameter [7:0] RAM_IDLE = 1;
     parameter [7:0] RAM_READ = 2;
     parameter [7:0] RAM_WRITE = 3;
-
     initial begin
         ram_state    = RAM_IDLE;
         send_count   = 0;
@@ -330,6 +320,9 @@ module tb_data_cache_fifo ();
         begin
             revised  = check_revised(address);
             read_ram = (revised[32] == 1'b1) ? ram_data[revised[31:0]] : address;
+            if (revised[32] == 1'b1) begin
+                $display("read mem data[%h]: %h, revised: %d", address, read_ram, revised[32]);
+            end
         end
     endfunction
 
@@ -341,12 +334,13 @@ module tb_data_cache_fifo ();
             index   = revised[31:0];
             if (revised[32] == 1'b0) begin
                 ram_data[ram_top] = {(wen[3] == 1'b1) ? wdata[31:24] : ram_data[ram_top][31:24], (wen[2] == 1'b1) ? wdata[23:16] : ram_data[ram_top][23:16], (wen[1] == 1'b1) ? wdata[15:8] : ram_data[ram_top][15:8], (wen[0] == 1'b1) ? wdata[7:0] : ram_data[ram_top][7:0]};
-                $display("revise data[%d]: %h", ram_top, ram_data[ram_top]);
+                // $display("revise mem data[%h]: %h, wen: %b", address, ram_data[ram_top], wen);
+                ram_address[ram_top] = address;
                 ram_top   = ram_top + 1;
                 write_ram = 1;
             end else begin
                 ram_data[index] = {(wen[3] == 1'b1) ? wdata[31:24] : ram_data[index][31:24], (wen[2] == 1'b1) ? wdata[23:16] : ram_data[index][23:16], (wen[1] == 1'b1) ? wdata[15:8] : ram_data[index][15:8], (wen[0] == 1'b1) ? wdata[7:0] : ram_data[index][7:0]};
-                $display("revise data[%d]: %h", index, ram_data[index]);
+                $display("revise mem data[%h]: %h, wen: %b", address, ram_data[index], wen);
                 write_ram = 0;
             end
         end
@@ -359,7 +353,7 @@ module tb_data_cache_fifo ();
             m_rlast      <= 0;
             m_rvalid     <= 0;
             m_awready    <= 0;
-            m_wready     <= 0;
+            // m_wready     <= 0;
             m_bvalid     <= 0;
 
             ram_state    <= RAM_IDLE;
@@ -386,36 +380,40 @@ module tb_data_cache_fifo ();
                     if (cache_ena) begin
                         m_arready <= 1'b0;
                         m_rdata   <= read_ram({m_araddr_reg[31:`LINE_OFFSET_WIDTH], send_count << 2});
-                        if (send_count == (`SEND_NUM - 1)) begin
-                            m_rlast    <= 1'b1;
-                            m_rvalid   <= 1'b1;
-                            send_count <= send_count + 1;
-                        end else if (send_count == `SEND_NUM) begin
-                            m_rlast    <= 1'b0;
-                            m_rvalid   <= 1'b0;
-                            send_count <= 0;
-                            ram_state  <= RAM_IDLE;
-                        end else begin
-                            m_rlast    <= 1'b0;
-                            m_rvalid   <= 1'b1;
-                            send_count <= send_count + 1;
+                        if (m_rready) begin
+                            if (send_count == (`SEND_NUM - 1)) begin
+                                m_rlast    <= 1'b1;
+                                m_rvalid   <= 1'b1;
+                                send_count <= send_count + 1;
+                            end else if (send_count == `SEND_NUM) begin
+                                m_rlast    <= 1'b0;
+                                m_rvalid   <= 1'b0;
+                                send_count <= 0;
+                                ram_state  <= RAM_IDLE;
+                            end else begin
+                                m_rlast    <= 1'b0;
+                                m_rvalid   <= 1'b1;
+                                send_count <= send_count + 1;
+                            end
                         end
                     end else begin
                         m_arready <= 1'b0;
                         m_rdata   <= read_ram({m_araddr_reg[31:2], 2'b00});
-                        if (send_count == 0) begin
-                            m_rlast    <= 1'b1;
-                            m_rvalid   <= 1'b1;
-                            send_count <= send_count + 1;
-                        end else if (send_count == 1) begin
-                            m_rlast    <= 1'b0;
-                            m_rvalid   <= 1'b0;
-                            send_count <= 0;
-                            ram_state  <= RAM_IDLE;
-                        end else begin
-                            m_rlast    <= 1'b0;
-                            m_rvalid   <= 1'b1;
-                            send_count <= send_count + 1;
+                        if (m_rready) begin
+                            if (send_count == 0) begin
+                                m_rlast    <= 1'b1;
+                                m_rvalid   <= 1'b1;
+                                send_count <= send_count + 1;
+                            end else if (send_count == 1) begin
+                                m_rlast    <= 1'b0;
+                                m_rvalid   <= 1'b0;
+                                send_count <= 0;
+                                ram_state  <= RAM_IDLE;
+                            end else begin
+                                m_rlast    <= 1'b0;
+                                m_rvalid   <= 1'b1;
+                                send_count <= send_count + 1;
+                            end
                         end
                     end
                 end
@@ -425,29 +423,29 @@ module tb_data_cache_fifo ();
                         if (m_wvalid == 1'b1) begin
                             write_state <= write_ram({m_awaddr_reg[31:`LINE_OFFSET_WIDTH], send_count << 2}, m_wstrb, m_wdata);
                             if (m_wlast == 1'b1) begin
-                                m_wready   <= 1'b0;
+                                // m_wready   <= 1'b0;
                                 send_count <= 0;
                                 m_bvalid   <= 1'b1;
                                 ram_state  <= RAM_IDLE;
                             end else begin
-                                m_wready   <= 1'b1;
+                                // m_wready   <= 1'b1;
                                 send_count <= send_count + 1;
                                 m_bvalid   <= 1'b0;
                             end
                         end else begin
-                            m_wready <= 1'b0;
+                            // m_wready <= 1'b0;
                         end
                     end else begin
                         m_awready <= 1'b0;
                         if (m_wvalid == 1'b1) begin
                             write_state <= write_ram({m_awaddr_reg[31:2], 2'b00}, m_wstrb, m_wdata);
                             if (m_wlast == 1'b1) begin
-                                m_wready   <= 1'b0;
+                                // m_wready   <= 1'b0;
                                 send_count <= 0;
                                 m_bvalid   <= 1'b1;
                                 ram_state  <= RAM_IDLE;
                             end else begin
-                                m_wready   <= 1'b1;
+                                // m_wready   <= 1'b1;
                                 send_count <= send_count + 1;
                                 m_bvalid   <= 1'b0;
                             end
@@ -456,5 +454,8 @@ module tb_data_cache_fifo ();
                 end
             endcase
         end
+    end
+    always @(*) begin
+        m_wready = (ram_state == RAM_WRITE) ? 1'b1 : 1'b0;
     end
 endmodule

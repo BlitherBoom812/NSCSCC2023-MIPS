@@ -2115,7 +2115,7 @@ begin
             end
         end
         state_read_miss_wait_write_burst: begin
-			if(m_awready) begin m_awvalid_r = 1'b0; end// need wait awrewady?
+			if(m_awready) begin m_awvalid_r = 1'b0; end
 			if(m_wready && m_awvalid_r == 1'b0) begin
 				cache_read_data(m_wdata_r);
 				if(cacheline_ptr == 4'b0000) begin 
