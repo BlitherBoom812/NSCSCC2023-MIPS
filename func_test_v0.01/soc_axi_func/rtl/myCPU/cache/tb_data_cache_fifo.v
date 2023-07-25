@@ -145,6 +145,7 @@ module tb_data_cache_fifo ();
     parameter [2:0] state_wait_inst_read = 3'b011;
     parameter [2:0] state_wait_data_read = 3'b100;
     parameter [2:0] state_wait_data_write = 3'b101;
+    parameter [2:0] state_decode = 3'b110;
 
     assign cache_ena = s_addr[31];
     assign flush     = s_arvalid && (s_addr == 32'hffff_ffff);
@@ -208,12 +209,6 @@ module tb_data_cache_fifo ();
                 21:      s_addr <= 32'hfe10_0000;  // short                
                 default: s_addr <= 32'hf000_0000;
             endcase
-            if (s_addr[0] == 1 && (!(s_addr == 32'hffffffff))) begin
-                s_awvalid <= s_addr[27:24];
-                s_wdata <= {s_addr[31:24], 24'h345678};
-            end else begin
-                s_arvalid <= 1'b1;
-            end
             data_req_count   <= data_req_count + 1;
             data_fetch_cycle <= 0;
         end
@@ -252,11 +247,20 @@ module tb_data_cache_fifo ();
                     end else if (flush_done) begin
                         flush_done <= 1'b0;
                         set_data_addr();
-                        cpu_state <= state_req;
+                        cpu_state <= state_decode;
                     end else begin
                         set_data_addr();
-                        cpu_state <= state_req;
+                        cpu_state <= state_decode;
                     end
+                end
+                state_decode: begin
+                    if (s_addr[0] == 1 && (!(s_addr == 32'hffffffff))) begin
+                        s_awvalid <= s_addr[27:24];
+                        s_wdata   <= {s_addr[31:24], 24'h345678};
+                    end else begin
+                        s_arvalid <= 1'b1;
+                    end
+                    cpu_state <= state_req;
                 end
                 state_req: begin
                     if (data_req_count == `TEST_REQ_NUM + 1) begin
@@ -268,15 +272,13 @@ module tb_data_cache_fifo ();
                             cpu_state <= state_turn_on;
                         end else begin
                             if (s_wready) begin
-                                $display("write data[%h]: %h, time consuming: %d cycles", {s_addr[31:2], 2'b00}, {(s_awvalid[3] == 1'b1) ? s_wdata[31:24] : 8'bxx, (s_awvalid[2] == 1'b1) ? s_wdata[23:16] : 8'bxx, (s_awvalid[1] == 1'b1) ? s_wdata[15:8] : 8'bxx, (s_awvalid[0] == 1'b1) ? s_wdata[7:0] : 8'bxx},
-                                         data_fetch_cycle);
-                                set_data_addr();
-                            end
-                            if (s_rvalid == 1'b1) begin
+                                $display("write data[%h]: %h, time consuming: %d cycles", {s_addr[31:2], 2'b00}, {(s_awvalid[3] == 1'b1) ? s_wdata[31:24] : 8'bxx, (s_awvalid[2] == 1'b1) ? s_wdata[23:16] : 8'bxx, (s_awvalid[1] == 1'b1) ? s_wdata[15:8] : 8'bxx,
+                                                                                                                  (s_awvalid[0] == 1'b1) ? s_wdata[7:0] : 8'bxx}, data_fetch_cycle);
+                                cpu_state <= state_turn_on;
+                            end else if (s_rvalid == 1'b1) begin
                                 $display("read data[%h]: %h, time consuming: %d cycles", {s_addr[31:2], 2'b00}, s_rdata, data_fetch_cycle);
-                                cpu_state        <= state_req;
+                                cpu_state        <= state_turn_on;
                                 data_fetch_cycle <= 0;
-                                set_data_addr();
                             end else begin
                                 if (data_fetch_cycle > 0) begin
                                     s_arvalid <= 1'b0;
@@ -295,15 +297,15 @@ module tb_data_cache_fifo ();
     reg [`LINE_OFFSET_WIDTH-1:0] send_count;
     reg [                  31:0] m_araddr_reg;  // store the address of the current read request
     reg [                  31:0] m_awaddr_reg;
-    reg write_state;
+    reg                          write_state;
     // state
     parameter [7:0] RAM_IDLE = 1;
     parameter [7:0] RAM_READ = 2;
     parameter [7:0] RAM_WRITE = 3;
 
     initial begin
-        ram_state  = RAM_IDLE;
-        send_count = 0;
+        ram_state    = RAM_IDLE;
+        send_count   = 0;
         m_araddr_reg = 0;
         m_awaddr_reg = 0;
     end
@@ -352,16 +354,16 @@ module tb_data_cache_fifo ();
 
     always @(posedge clk) begin
         if (rst == `RST_ENABLE) begin
-            m_arready  <= 0;
-            m_rdata    <= 0;
-            m_rlast    <= 0;
-            m_rvalid   <= 0;
-            m_awready  <= 0;
-            m_wready   <= 0;
-            m_bvalid   <= 0;
+            m_arready    <= 0;
+            m_rdata      <= 0;
+            m_rlast      <= 0;
+            m_rvalid     <= 0;
+            m_awready    <= 0;
+            m_wready     <= 0;
+            m_bvalid     <= 0;
 
-            ram_state  <= RAM_IDLE;
-            send_count <= 0;
+            ram_state    <= RAM_IDLE;
+            send_count   <= 0;
             m_araddr_reg <= 0;
             m_awaddr_reg <= 0;
             $display("start ram");
@@ -382,22 +384,22 @@ module tb_data_cache_fifo ();
                 end
                 RAM_READ: begin
                     if (cache_ena) begin
-                            m_arready <= 1'b0;
-                            m_rdata   <= read_ram({m_araddr_reg[31:`LINE_OFFSET_WIDTH], send_count << 2});
-                            if (send_count == (`SEND_NUM - 1)) begin
-                                m_rlast    <= 1'b1;
-                                m_rvalid   <= 1'b1;
-                                send_count <= send_count + 1;
-                            end else if (send_count == `SEND_NUM) begin
-                                m_rlast    <= 1'b0;
-                                m_rvalid   <= 1'b0;
-                                send_count <= 0;
-                                ram_state  <= RAM_IDLE;
-                            end else begin
-                                m_rlast    <= 1'b0;
-                                m_rvalid   <= 1'b1;
-                                send_count <= send_count + 1;
-                            end
+                        m_arready <= 1'b0;
+                        m_rdata   <= read_ram({m_araddr_reg[31:`LINE_OFFSET_WIDTH], send_count << 2});
+                        if (send_count == (`SEND_NUM - 1)) begin
+                            m_rlast    <= 1'b1;
+                            m_rvalid   <= 1'b1;
+                            send_count <= send_count + 1;
+                        end else if (send_count == `SEND_NUM) begin
+                            m_rlast    <= 1'b0;
+                            m_rvalid   <= 1'b0;
+                            send_count <= 0;
+                            ram_state  <= RAM_IDLE;
+                        end else begin
+                            m_rlast    <= 1'b0;
+                            m_rvalid   <= 1'b1;
+                            send_count <= send_count + 1;
+                        end
                     end else begin
                         m_arready <= 1'b0;
                         m_rdata   <= read_ram({m_araddr_reg[31:2], 2'b00});
