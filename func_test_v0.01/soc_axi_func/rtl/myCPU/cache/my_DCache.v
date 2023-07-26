@@ -185,7 +185,7 @@ write_through method.
 
     integer index;
     always @(posedge clk) begin
-        if (rst == `RST_ENABLE) begin
+        if (rst === `RST_ENABLE) begin
             current_state <= IDLE;
             for (index = 0; index < 2; index = index + 1) begin
                 v[index] <= {128{1'b0}};
@@ -221,7 +221,7 @@ write_through method.
                 // wait addr and request
                 IDLE: begin
                     if (!flush) begin
-                        if ((s_arvalid == 1'b1) || (|s_awvalid == 1'b1)) begin
+                        if ((s_arvalid === 1'b1) || (|s_awvalid === 1'b1)) begin
                             if (cache_ena) begin
                                 // go to COMP_TAG
                                 current_state <= COMP_TAG;
@@ -229,9 +229,9 @@ write_through method.
                                 // set direct request and go to READ_MEM
                                 current_state <= READ_MEM;
                                 read_count    <= 3'd0;
-                                if (|s_awvalid == 1'b1) begin
+                                if (|s_awvalid === 1'b1) begin
                                     m_awvalid_r <= 1'b1;
-                                end else if (s_arvalid == 1'b1) begin
+                                end else if (s_arvalid === 1'b1) begin
                                     m_arvalid_r <= 1'b1;
                                 end
                             end
@@ -246,12 +246,12 @@ write_through method.
                     if (|hit) begin
                         current_state  <= IDLE;
                         // if hit: for read, it updates lru and goes back to IDLE; for write, it updates lru, d, data ram and goes to IDLE.
-                        lru[index_req] <= (hit[0] == 1'b1) ? 1'b1 : 1'b0;
+                        lru[index_req] <= (hit[0] === 1'b1) ? 1'b1 : 1'b0;
                         // update d for only write
-                        if (|awvalid_req == 1'b1) begin
+                        if (|awvalid_req === 1'b1) begin
                             // update cache(see assign)
                             // update d
-                            if (hit[0] == 1'b1) begin
+                            if (hit[0] === 1'b1) begin
                                 d[0][index_req] <= 1;
                             end else begin
                                 d[1][index_req] <= 1;
@@ -259,12 +259,12 @@ write_through method.
                         end
                     end else begin
                         // if not hit: for read, it sends addr and goes to READ_MEM; for write, it sends addr and goes to READ_MEM; also, it handles the write through process.
-                        // for read work
                         current_state <= READ_MEM;
+                        // for read work
                         read_count    <= 3'd0;
                         m_arvalid_r   <= 1'b1;
                         // for write work
-                        if (dirty == 1'b1) begin
+                        if (dirty === 1'b1) begin
                             // if dirty, send write back request
                             write_count <= 0;
                             m_awvalid_r <= 1'b1;
@@ -281,69 +281,73 @@ write_through method.
                 READ_MEM: begin
                     if (cached) begin
                         // handshake
+                        // write first, then read
                         // read
-                        if (m_arready == 1'b1) begin
+                        if ((m_arready === 1'b1) && (read_state === 2'b00)) begin
                             m_arvalid_r <= 1'b0;
                             read_state  <= 2'b01;
+                        end else begin
+                            $display("read_state === 2'b00? ", read_state === 2'b00);
                         end
                         // write
-                        if ((m_awready == 1'b1) && (dirty == 1'b1)) begin
+                        if ((m_awready === 1'b1) && (dirty === 1'b1) && (write_state === 2'b00)) begin
                             m_awvalid_r <= 1'b0;
                             write_state <= 2'b01;
+                        end else begin
+                            $display("write_state === 2'b00? ", write_state === 2'b00);
                         end
                         // data transfer
                         // read
                         if (m_rvalid) begin
                             read_count <= read_count + 1;
                             // if axi outputs data needed, then put it into data_at_refill, and send to s_rdata at REFILL
-                            if (read_count == offset_req) begin
+                            if (read_count === offset_req) begin
                                 data_at_refill <= m_rdata;
                             end
                             // write data to data ram (see assign)
                         end
-                        if (m_rlast == 1'b1) begin
+                        if (m_rlast === 1'b1) begin
                             // current_state <= REFILL;
                             read_state <= 2'b10;
                             read_count <= 3'b0;
                         end
                         // write
-                        if (write_state == 2'b01) begin
+                        if (write_state === 2'b01) begin
                             if (write_count !== 4'd8) begin
                                 m_wdata_r <= data_for_write_through[write_count];
                             end
-                            if (write_count == 4'd8) begin
+                            if (write_count === 4'd8) begin
                                 m_wvalid_r  <= 1'b0;
                                 m_wlast_r   <= 1'b0;
                                 write_count <= 3'd0;
                                 write_state <= 2'b11;
-                            end else if (write_count == 4'd7) begin
+                            end else if (write_count === 4'd7) begin
                                 m_wvalid_r <= 1'b1;
                                 m_wlast_r  <= 1'b1;
-                                if (m_wready == 1'b1) begin
+                                if (m_wready === 1'b1) begin
                                     write_count <= write_count + 1;
                                 end
                             end else begin
                                 m_wvalid_r <= 1'b1;
                                 m_wlast_r  <= 1'b0;
-                                if (m_wready == 1'b1) begin
+                                if (m_wready === 1'b1) begin
                                     write_count <= write_count + 1;
                                 end
                             end
-                        end
-                        if (write_state == 2'b11) begin
+                        end else if (write_state === 2'b11) begin
                             if (m_bvalid) begin
                                 write_state <= 2'b10;
                             end
                         end
                         // transition
-                        if (dirty == 1'b1) begin  // write mode
-                            if ((read_state == 2'b10) && (write_state == 2'b10)) begin
+                        if (dirty === 1'b1) begin  // write mode
+                            if ((read_state === 2'b10) && (write_state === 2'b10)) begin
                                 current_state <= REFILL;
                                 read_state    <= 2'b00;
                                 write_state   <= 2'b00;
                             end
                         end else begin  // read mode
-                            if ((read_state == 2'b10)) begin
+                            if ((read_state === 2'b10)) begin
                                 current_state <= REFILL;
                                 read_state    <= 2'b00;
                                 write_state   <= 2'b00;
@@ -352,33 +356,34 @@ write_through method.
                     end else begin
                         // uncached
                         if (|awvalid_req) begin  // write
-                            if ((m_awready == 1'b1)) begin
+                            if ((m_awready === 1'b1) && (write_state === 2'b00)) begin
                                 m_awvalid_r <= 1'b0;
                                 write_state <= 2'b01;
-                            end
-                            if (write_state == 2'b01) begin
-                                if (write_count == 4'd1) begin
+                                // $display("write state: 00 -> 01");
+                            end else if (write_state === 2'b01) begin
+                                if (write_count === 4'd1) begin
                                     m_wvalid_r  <= 1'b0;
                                     m_wlast_r   <= 1'b0;
                                     write_count <= 3'd0;
                                     write_state <= 2'b11;
+                                    // $display("write state: 01 -> 11");
                                 end else begin
                                     m_wvalid_r <= 1'b1;
                                     m_wlast_r  <= 1'b1;
                                     m_wdata_r  <= wdata_req;
-                                    if (m_wready == 1'b1) begin
+                                    if (m_wready === 1'b1) begin
                                         write_count <= write_count + 1;
                                     end
                                 end
-                            end
-                            if (write_state == 2'b11) begin // do nothing
+                            end else if (write_state === 2'b11) begin // do nothing
                                 if (m_bvalid) begin
                                     write_state   <= 2'b00;
+                                    // $display("write state: 11 -> 00");
                                     current_state <= REFILL;
                                 end
                             end
                         end else if (arvalid_req) begin  // read
-                            if (m_arready == 1'b1) begin
+                            if (m_arready === 1'b1) begin
                                 m_arvalid_r <= 1'b0;
                             end
                             if (m_rvalid && m_rlast) begin
@@ -398,7 +403,7 @@ write_through method.
                         // update v for both read and write
                         v[replaced_way][index_req] <= 1;
                         // update d
-                        if (|awvalid_req == 1'b1) begin
+                        if (|awvalid_req === 1'b1) begin
                             d[replaced_way][index_req] <= 1;
                         end else begin
                             d[replaced_way][index_req] <= 0;
@@ -415,16 +420,16 @@ write_through method.
     //-----------------------wire assign------------------------//
     // don't know when the axi_ram will reply with arready=1, so have a reg to wait for that
     assign m_arvalid    = m_arvalid_r;
-    assign m_rready     = (current_state == READ_MEM) ? 1'b1 : 1'b0;
+    assign m_rready     = (current_state === READ_MEM) ? 1'b1 : 1'b0;
 
     // calculate addr, tag, index, offset, data
-    assign addr_req     = (current_state == IDLE) ? s_addr : addr_req_r;
+    assign addr_req     = (current_state === IDLE) ? s_addr : addr_req_r;
     assign tag_req      = addr_req[31:12];
     assign index_req    = addr_req[11:5];
     assign offset_req   = addr_req[4:2];
-    assign wdata_req    = (current_state == IDLE) ? s_wdata : wdata_req_r;
-    assign arvalid_req  = (current_state == IDLE) ? s_arvalid : arvalid_req_r;
-    assign awvalid_req  = (current_state == IDLE) ? s_awvalid : awvalid_req_r;
+    assign wdata_req    = (current_state === IDLE) ? s_wdata : wdata_req_r;
+    assign arvalid_req  = (current_state === IDLE) ? s_arvalid : arvalid_req_r;
+    assign awvalid_req  = (current_state === IDLE) ? s_awvalid : awvalid_req_r;
 
     // indicate which way to be replaced
     assign replaced_way = lru[index_req];
@@ -438,25 +443,25 @@ write_through method.
             // used for IDLE
             assign tag_addr[i] = index_req;
             // used for COMP_TAG
-            assign hit[i]      = ((tag_rdata[i] == tag_req) && (v[i][index_req] == 1'b1)) ? 1'b1 : 1'b0;
+            assign hit[i]      = ((tag_rdata[i] === tag_req) && (v[i][index_req] === 1'b1)) ? 1'b1 : 1'b0;
             // update cache line, in COMP_TAG, READ_MEM, REFILL
             for (j = 0; j < 8; j = j + 1) begin
                 assign data_wen[i][j]   = 
-                    ((current_state == COMP_TAG) && (|hit) && (|awvalid_req) && (hit[i] == 1'b1) && (offset_req == j)) ? 
+                    ((current_state === COMP_TAG) && (|hit) && (|awvalid_req) && (hit[i] === 1'b1) && (offset_req === j)) ? 
                         awvalid_req
                     :
-                        ((current_state == READ_MEM) && (cached) && (m_rvalid) && (replaced_way == i) && (read_count == j)) ? 
+                        ((current_state === READ_MEM) && (cached) && (m_rvalid) && (replaced_way === i) && (read_count === j)) ? 
                             4'b1111 
                         : 
-                            (((current_state == REFILL) && (cached) && (|awvalid_req == 1'b1) && (replaced_way == i) && (offset_req == j)) ? 
+                            (((current_state === REFILL) && (cached) && (|awvalid_req === 1'b1) && (replaced_way === i) && (offset_req === j)) ? 
                                 awvalid_req 
                             : 
                                 4'b0000);
-                assign data_wdata[i][j] = (current_state == COMP_TAG) ? wdata_req_r : (current_state == READ_MEM) ? m_rdata : ((current_state == REFILL) ? wdata_req_r : 32'h0000_0000);
+                assign data_wdata[i][j] = (current_state === COMP_TAG) ? wdata_req_r : (current_state === READ_MEM) ? m_rdata : ((current_state === REFILL) ? wdata_req_r : 32'h0000_0000);
                 assign data_addr[i][j] = index_req;
             end
             // used for REFILL
-            assign tag_wen[i]   = ((cached) && (current_state == REFILL) && (replaced_way == i));
+            assign tag_wen[i]   = ((cached) && (current_state === REFILL) && (replaced_way === i));
             assign tag_wdata[i] = tag_req;
         end
     endgenerate
@@ -503,10 +508,10 @@ write_through method.
     // assume the cpu get data from cache in 1 cycle, so don't have a reg to wait
     // if hit, the cpu get data at COMP_TAG state
     // else, the cpu get data at REFILL state
-    assign s_rvalid  = (((current_state == REFILL) ||((current_state == COMP_TAG) && (|hit))) && (|awvalid_req == 1'b0) && (arvalid_req == 1'b1)) ? 1'b1 : 1'b0;
-    assign s_rdata   = (current_state == COMP_TAG && (|hit)) ? ((hit[0] == 1'b1) ? data_rdata[0][offset_req] : data_rdata[1][offset_req]) : ((current_state == REFILL) ? data_at_refill : {32{1'b0}});
+    assign s_rvalid  = (((current_state === REFILL) ||((current_state === COMP_TAG) && (|hit))) && (|awvalid_req === 1'b0) && (arvalid_req === 1'b1)) ? 1'b1 : 1'b0;
+    assign s_rdata   = (current_state === COMP_TAG && (|hit)) ? ((hit[0] === 1'b1) ? data_rdata[0][offset_req] : data_rdata[1][offset_req]) : ((current_state === REFILL) ? data_at_refill : {32{1'b0}});
     // w
-    assign s_wready  = (((current_state == REFILL) || (current_state == COMP_TAG && (|hit))) && ((|awvalid_req == 1'b1)) && (arvalid_req == 1'b0)) ? 1'b1 : 1'b0;
+    assign s_wready  = (((current_state === REFILL) || (current_state === COMP_TAG && (|hit))) && ((|awvalid_req === 1'b1)) && (arvalid_req === 1'b0)) ? 1'b1 : 1'b0;
 endmodule
 
 
