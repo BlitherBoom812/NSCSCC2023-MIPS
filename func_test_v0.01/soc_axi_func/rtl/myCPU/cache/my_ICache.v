@@ -157,7 +157,8 @@ always @(posedge clk) begin
                     end
                 end
             end
-
+            // update lru
+            // lru通常保持为最近使用的一路，但是当缺失发生时，反转为最近未使用的一路
             COMP_TAG: begin
                 if (|hit) begin
                     current_state <= IDLE;

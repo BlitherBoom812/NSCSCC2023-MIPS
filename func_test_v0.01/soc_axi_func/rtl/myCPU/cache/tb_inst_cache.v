@@ -97,15 +97,16 @@ module tb_inst_cache ();
     task set_inst_addr();
         begin
             case (inst_req_count)
-                0: s_araddr <= 32'hf000_0000;
-                1: s_araddr <= 32'hf000_0004;
-                2: s_araddr <= 32'hf000_0008;
-                3: s_araddr <= 32'hf000_000C;
-                4: s_araddr <= 32'hf000_0040;
-                5: s_araddr <= 32'hf000_0044;
-                6: s_araddr <= 32'hffff_ffff;
-                7: s_araddr <= 32'h0000_0014;
-                8: s_araddr <= 32'h0000_0018;
+                // test replace
+                0: s_araddr <= 32'hf000_0000;   // miss
+                1: s_araddr <= 32'hf100_0004;   // miss
+                2: s_araddr <= 32'hf100_0008;   // hit
+                3: s_araddr <= 32'hf200_000C;   // miss
+                4: s_araddr <= 32'hf100_0000;   // hit
+                5: s_araddr <= 32'hf300_0004;   // miss
+                6: s_araddr <= 32'hf100_0000;   // hit
+                7: s_araddr <= 32'hf300_0004;   // hit
+                8: s_araddr <= 32'hf100_0000;   // hit
                 default: s_araddr <= 32'hf000_0000;
             endcase
             inst_req_count   <= inst_req_count + 1;

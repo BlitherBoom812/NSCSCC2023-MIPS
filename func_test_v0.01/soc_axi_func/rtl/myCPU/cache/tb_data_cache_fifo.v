@@ -3,8 +3,8 @@
 `include "defines.vh"
 
 `define RAM_SIZE 1024
-`define LINE_OFFSET_WIDTH 6 // For data_cache is 6 (2^6 Bytes = 64 Bytes = 16 words per line); For my_DCache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
-`define SEND_NUM 16 // (The num of words) For data_cache is 16; For my_DCache, is 8
+`define LINE_OFFSET_WIDTH 5 // For data_cache is 6 (2^6 Bytes = 64 Bytes = 16 words per line); For my_DCache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
+`define SEND_NUM 8 // (The num of words) For data_cache is 16; For my_DCache, is 8
 
 `define TEST_REQ_NUM 8'd20
 
@@ -352,13 +352,13 @@ module tb_data_cache_fifo ();
             index   = revised[31:0];
             if (revised[32] == 1'b0) begin
                 ram_data[ram_top]    = {(wen[3] == 1'b1) ? wdata[31:24] : ram_data[ram_top][31:24], (wen[2] == 1'b1) ? wdata[23:16] : ram_data[ram_top][23:16], (wen[1] == 1'b1) ? wdata[15:8] : ram_data[ram_top][15:8], (wen[0] == 1'b1) ? wdata[7:0] : ram_data[ram_top][7:0]};
-                // $display("revise mem data[%h]: %h, wen: %b", address, ram_data[ram_top], wen);
+                // $display("revise new mem data[%h]: %h, wen: %b", address, ram_data[ram_top], wen);
                 ram_address[ram_top] = address;
                 ram_top              = ram_top + 1;
                 write_ram            = 1;
             end else begin
                 ram_data[index] = {(wen[3] == 1'b1) ? wdata[31:24] : ram_data[index][31:24], (wen[2] == 1'b1) ? wdata[23:16] : ram_data[index][23:16], (wen[1] == 1'b1) ? wdata[15:8] : ram_data[index][15:8], (wen[0] == 1'b1) ? wdata[7:0] : ram_data[index][7:0]};
-                // $display("revise mem data[%h]: %h, wen: %b", address, ram_data[index], wen);
+                // $display("revise existing mem data[%h]: %h, wen: %b", address, ram_data[index], wen);
                 write_ram = 0;
             end
         end
@@ -382,6 +382,7 @@ module tb_data_cache_fifo ();
         end else begin
             case (ram_state)
                 RAM_IDLE: begin
+                    m_bvalid <= 0;
                     if (m_awvalid == 1'b1) begin
                         m_awready    <= 1'b1;
                         send_count   <= 0;
