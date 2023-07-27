@@ -9,6 +9,10 @@
 
 增加ICache，IPC略有提升。
 
-![](./sources/perf.jpg)
+### 2023/07/27
+
+更新DCache，IPC提升了一些，但是主频有下降。
+
+![](./sources/perf.png)
 
 by 和植物抢氧气队
