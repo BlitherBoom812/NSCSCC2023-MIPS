@@ -7,8 +7,16 @@
 
 ### 2023/07/14
 
-增加ICache，IPC略有提升。
+增加ICache
+* IPC略有提升
+* 寄存器资源消耗大幅减少！（使用bram的缘故）
+### 2023/07/27
 
-![](./sources/perf.jpg)
+更新DCache
+* IPC提升了一些
+* 但是主频有下降
+* 资源消耗大幅减少！（使用bram的缘故）
+
+![](./sources/perf.png)
 
 by 和植物抢氧气队

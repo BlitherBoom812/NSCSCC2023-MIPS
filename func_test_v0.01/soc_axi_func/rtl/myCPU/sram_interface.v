@@ -220,7 +220,7 @@ always @ (posedge clk) begin
         end
         state_wait_data_write: begin
             if(data_cache_write_ok) begin 
-                data_cache_wen <= 4'b0000; //change here cause data_cache_fifo use this signal in wait state
+                data_cache_wen <= 4'b0000; //change here cause data_cache use this signal in wait state
                 state <= state_wait_inst_read;
                 inst_cache_ren <= 1'b1;
                 is_inst_read <= 1'b1;

@@ -236,7 +236,7 @@ inst_cache  inst_cache_module(
 .s_rvalid       (inst_valid)
 );
 
-data_cache_fifo data_cache_fifo_module(
+data_cache data_cache_module(
 .clk            (aclk),
 .rst            (aresetn),
 .cache_ena      (data_cache_ena),

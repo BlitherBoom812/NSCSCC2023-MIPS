@@ -1,3 +1,5 @@
+`define RST_ENABLE 1'b0
+`define RST_DISABLE 1'b1
 //cause reg
 `define EXL             1
 `define ERL             2
