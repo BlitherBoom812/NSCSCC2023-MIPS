@@ -49,7 +49,7 @@
 //
 //               Revision 1.1.1.1  2002/10/29 20:29:10  rherveille
 
-module div_uu(
+module div_core(
 	input 				  clk, // system clock
 	input 				  ena, // clock enable
 
