@@ -18,8 +18,8 @@ module id (
 
     output reg [31:0] pc_o,
     output reg [31:0] inst_o,
-    output reg [31:0] rs_data_o,
-    output reg [31:0] rt_data_o,
+    output     [31:0] rs_data_o,
+    output     [31:0] rt_data_o,
     //control
     output reg [ 7:0] aluop_o,
     output reg [ 4:0] regfile_write_addr_o,
@@ -72,22 +72,27 @@ module id (
 
     assign exception_type_o   = {exception_type_i[31], ~instr_valid, exception_type_i[29], is_break, is_syscall, exception_type_i[26:1], is_eret};
 
-    //数据转发
-    always @(*) begin
-        if (reset_i == 1'b0) rs_data_o <= 32'h0;
-        else if (rs_read_enable == 1'b1 && forward_ex_regfile_write_addr_i == rs && forward_ex_regfile_write_enable_i == 1'b1) rs_data_o <= forward_ex_regfile_write_data_i;
-        else if (rs_read_enable == 1'b1 && forward_mem_regfile_write_addr_i == rs && forward_mem_regfile_write_enable_i == 1'b1) rs_data_o <= forward_mem_regfile_write_data_i;
-        else if (rs_read_enable == 1'b1) rs_data_o <= rs_data_i;
-        else rs_data_o <= 32'h0;
-    end
+    function [31:0] forward_rs_data(input reset_i, input rs_read_enable, input [4:0] rs, input [31:0] rs_data_i, input [4:0] forward_ex_regfile_write_addr_i, input forward_ex_regfile_write_enable_i, input [31:0] forward_ex_regfile_write_data_i, input [4:0] forward_mem_regfile_write_addr_i,
+                             input forward_mem_regfile_write_enable_i, input [31:0] forward_mem_regfile_write_data_i);
+        if (reset_i === 1'b0) forward_rs_data = 32'h0;
+        else if (rs_read_enable === 1'b1 && forward_ex_regfile_write_addr_i === rs && forward_ex_regfile_write_enable_i === 1'b1) forward_rs_data = forward_ex_regfile_write_data_i;
+        else if (rs_read_enable === 1'b1 && forward_mem_regfile_write_addr_i === rs && forward_mem_regfile_write_enable_i === 1'b1) forward_rs_data = forward_mem_regfile_write_data_i;
+        else if (rs_read_enable === 1'b1) forward_rs_data = rs_data_i;
+        else forward_rs_data = 32'h0;
+    endfunction
 
-    always @(*) begin
-        if (reset_i == 1'b0) rt_data_o <= 32'h0;
-        else if (rt_read_enable == 1'b1 && forward_ex_regfile_write_addr_i == rt && forward_ex_regfile_write_enable_i == 1'b1) rt_data_o <= forward_ex_regfile_write_data_i;
-        else if (rt_read_enable == 1'b1 && forward_mem_regfile_write_addr_i == rt && forward_mem_regfile_write_enable_i == 1'b1) rt_data_o <= forward_mem_regfile_write_data_i;
-        else if (rt_read_enable == 1'b1) rt_data_o <= rt_data_i;
-        else rt_data_o <= 32'h0;
-    end
+    assign rs_data_o = forward_rs_data(reset_i, rs_read_enable, rs, rs_data_i, forward_ex_regfile_write_addr_i, forward_ex_regfile_write_enable_i, forward_ex_regfile_write_data_i, forward_mem_regfile_write_addr_i, forward_mem_regfile_write_enable_i, forward_mem_regfile_write_data_i);
+
+    function [31:0] forward_rt_data(input reset_i, input rt_read_enable, input [4:0] rt, input [31:0] rt_data_i, input [4:0] forward_ex_regfile_write_addr_i, input forward_ex_regfile_write_enable_i, input [31:0] forward_ex_regfile_write_data_i, input [4:0] forward_mem_regfile_write_addr_i,
+                             input forward_mem_regfile_write_enable_i, input [31:0] forward_mem_regfile_write_data_i);
+        if (reset_i === 1'b0) forward_rt_data = 32'h0;
+        else if (rt_read_enable === 1'b1 && forward_ex_regfile_write_addr_i === rt && forward_ex_regfile_write_enable_i === 1'b1) forward_rt_data = forward_ex_regfile_write_data_i;
+        else if (rt_read_enable === 1'b1 && forward_mem_regfile_write_addr_i === rt && forward_mem_regfile_write_enable_i === 1'b1) forward_rt_data = forward_mem_regfile_write_data_i;
+        else if (rt_read_enable === 1'b1) forward_rt_data = rt_data_i;
+        else forward_rt_data = 32'h0;
+    endfunction
+
+    assign rt_data_o = forward_rt_data(reset_i, rt_read_enable, rt, rt_data_i, forward_ex_regfile_write_addr_i, forward_ex_regfile_write_enable_i, forward_ex_regfile_write_data_i, forward_mem_regfile_write_addr_i, forward_mem_regfile_write_enable_i, forward_mem_regfile_write_data_i);
 
     always @(*) begin
         if (reset_i == 1'b0) begin
@@ -142,77 +147,77 @@ module id (
             case (op)
                 6'b000000: begin
                     case (funct)
-                        `ID_AND: begin
+                        `FUNCT_AND: begin
                             regfile_write_enable_o <= 1'b1;
                             aluop_o                <= `ALUOP_AND;
                             rs_read_enable         <= 1'b1;
                             rt_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                         end
-                        `ID_OR: begin
+                        `FUNCT_OR: begin
                             regfile_write_enable_o <= 1'b1;
                             aluop_o                <= `ALUOP_OR;
                             rs_read_enable         <= 1'b1;
                             rt_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                         end
-                        `ID_XOR: begin
+                        `FUNCT_XOR: begin
                             regfile_write_enable_o <= 1'b1;
                             aluop_o                <= `ALUOP_XOR;
                             rs_read_enable         <= 1'b1;
                             rt_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                         end
-                        `ID_NOR: begin
+                        `FUNCT_NOR: begin
                             regfile_write_enable_o <= 1'b1;
                             aluop_o                <= `ALUOP_NOR;
                             rs_read_enable         <= 1'b1;
                             rt_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                         end
-                        `ID_ADD: begin
+                        `FUNCT_ADD: begin
                             regfile_write_enable_o <= 1'b1;
                             aluop_o                <= `ALUOP_ADD;
                             rs_read_enable         <= 1'b1;
                             rt_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                         end
-                        `ID_ADDU: begin
+                        `FUNCT_ADDU: begin
                             regfile_write_enable_o <= 1'b1;
                             aluop_o                <= `ALUOP_ADDU;
                             rs_read_enable         <= 1'b1;
                             rt_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                         end
-                        `ID_SUB: begin
+                        `FUNCT_SUB: begin
                             regfile_write_enable_o <= 1'b1;
                             aluop_o                <= `ALUOP_SUB;
                             rs_read_enable         <= 1'b1;
                             rt_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                         end
-                        `ID_SUBU: begin
+                        `FUNCT_SUBU: begin
                             regfile_write_enable_o <= 1'b1;
                             aluop_o                <= `ALUOP_SUBU;
                             rs_read_enable         <= 1'b1;
                             rt_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                         end
-                        `ID_SLT: begin
+                        `FUNCT_SLT: begin
                             regfile_write_enable_o <= 1'b1;
                             aluop_o                <= `ALUOP_SLT;
                             rs_read_enable         <= 1'b1;
                             rt_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                         end
-                        `ID_SLTU: begin
+                        `FUNCT_SLTU: begin
                             regfile_write_enable_o <= 1'b1;
                             aluop_o                <= `ALUOP_SLTU;
                             rs_read_enable         <= 1'b1;
                             rt_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                         end
-                        `ID_MULT: begin
+                        `FUNCT_MULT: begin
                             aluop_o           <= `ALUOP_MULT;
                             instr_valid       <= 1'b1;
                             rs_read_enable    <= 1'b1;
@@ -220,7 +225,7 @@ module id (
                             hi_write_enable_o <= 1'b1;
                             lo_write_enable_o <= 1'b1;
                         end
-                        `ID_MULTU: begin
+                        `FUNCT_MULTU: begin
                             aluop_o           <= `ALUOP_MULTU;
                             instr_valid       <= 1'b1;
                             rs_read_enable    <= 1'b1;
@@ -228,7 +233,7 @@ module id (
                             hi_write_enable_o <= 1'b1;
                             lo_write_enable_o <= 1'b1;
                         end
-                        `ID_DIV: begin
+                        `FUNCT_DIV: begin
                             aluop_o           <= `ALUOP_DIV;
                             instr_valid       <= 1'b1;
                             rs_read_enable    <= 1'b1;
@@ -236,7 +241,7 @@ module id (
                             hi_write_enable_o <= 1'b1;
                             lo_write_enable_o <= 1'b1;
                         end
-                        `ID_DIVU: begin
+                        `FUNCT_DIVU: begin
                             aluop_o           <= `ALUOP_DIVU;
                             instr_valid       <= 1'b1;
                             rs_read_enable    <= 1'b1;
@@ -244,28 +249,28 @@ module id (
                             hi_write_enable_o <= 1'b1;
                             lo_write_enable_o <= 1'b1;
                         end
-                        `ID_SLLV: begin
+                        `FUNCT_SLLV: begin
                             regfile_write_enable_o <= 1'b1;
                             aluop_o                <= `ALUOP_SLLV;
                             rs_read_enable         <= 1'b1;
                             rt_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                         end
-                        `ID_SRLV: begin
+                        `FUNCT_SRLV: begin
                             regfile_write_enable_o <= 1'b1;
                             aluop_o                <= `ALUOP_SRLV;
                             rs_read_enable         <= 1'b1;
                             rt_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                         end
-                        `ID_SRAV: begin
+                        `FUNCT_SRAV: begin
                             regfile_write_enable_o <= 1'b1;
                             aluop_o                <= `ALUOP_SRAV;
                             rs_read_enable         <= 1'b1;
                             rt_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                         end
-                        `ID_MFHI: begin
+                        `FUNCT_MFHI: begin
                             if (rs == 5'h0 && rt == 5'h0) begin
                                 instr_valid            <= 1'b1;
                                 aluop_o                <= `ALUOP_MFHI;
@@ -274,7 +279,7 @@ module id (
                                 instr_valid            <= 1'b1;
                             end
                         end
-                        `ID_MFLO: begin
+                        `FUNCT_MFLO: begin
                             if (rs == 5'h0 && rt == 5'h0) begin
                                 instr_valid            <= 1'b1;
                                 aluop_o                <= `ALUOP_MFLO;
@@ -282,7 +287,7 @@ module id (
                                 instr_valid            <= 1'b1;
                             end
                         end
-                        `ID_MTHI: begin
+                        `FUNCT_MTHI: begin
                             if (rt == 5'h0 && rd == 5'h0) begin
                                 aluop_o           <= `ALUOP_MTHI;
                                 hi_write_enable_o <= 1'b1;
@@ -290,7 +295,7 @@ module id (
                                 rs_read_enable    <= 1'b1;
                             end
                         end
-                        `ID_MTLO: begin
+                        `FUNCT_MTLO: begin
                             if (rt == 5'h0 && rd == 5'h0) begin
                                 aluop_o           <= `ALUOP_MTLO;
                                 lo_write_enable_o <= 1'b1;
@@ -298,7 +303,7 @@ module id (
                                 rs_read_enable    <= 1'b1;
                             end
                         end
-                        `ID_JR: begin
+                        `FUNCT_JR: begin
                             if (rt == 5'h0 && rd == 5'h0) begin
                                 aluop_o             <= `ALUOP_JR;
                                 rs_read_enable      <= 1'b1;
@@ -308,7 +313,7 @@ module id (
                                 instr_valid         <= 1'b1;
                             end
                         end
-                        `ID_JALR: begin
+                        `FUNCT_JALR: begin
                             if (rt == 5'h0) begin
                                 aluop_o                <= `ALUOP_JALR;
                                 regfile_write_enable_o <= 1'b1;
@@ -321,12 +326,12 @@ module id (
                                 regfile_write_enable_o <= 1'b1;
                             end
                         end
-                        `ID_SYSCALL: begin
+                        `FUNCT_SYSCALL: begin
                             aluop_o     <= `ALUOP_SYSCALL;
                             instr_valid <= 1'b1;
                             is_syscall  <= 1'b1;
                         end
-                        `ID_BREAK: begin
+                        `FUNCT_BREAK: begin
                             aluop_o     <= `ALUOP_BREAK;
                             instr_valid <= 1'b1;
                             is_break    <= 1'b1;
@@ -336,7 +341,7 @@ module id (
                 end
                 6'b000001: begin  //bgez bltz bgezal bltzal
                     case (rt)
-                        `ID_BGEZ: begin
+                        `RT_BGEZ: begin
                             rs_read_enable      <= 1'b1;
                             instr_valid         <= 1'b1;
                             aluop_o             <= `ALUOP_BGEZ;
@@ -346,7 +351,7 @@ module id (
                                 branch_enable_o <= 1'b1;
                             end
                         end
-                        `ID_BLTZ: begin
+                        `RT_BLTZ: begin
                             rs_read_enable      <= 1'b1;
                             instr_valid         <= 1'b1;
                             aluop_o             <= `ALUOP_BLTZ;
@@ -356,7 +361,7 @@ module id (
                                 branch_enable_o <= 1'b1;
                             end
                         end
-                        `ID_BGEZAL: begin
+                        `RT_BGEZAL: begin
                             rs_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                             aluop_o                <= `ALUOP_BGEZAL;
@@ -368,7 +373,7 @@ module id (
                                 branch_enable_o <= 1'b1;
                             end
                         end
-                        `ID_BLTZAL: begin
+                        `RT_BLTZAL: begin
                             rs_read_enable         <= 1'b1;
                             instr_valid            <= 1'b1;
                             aluop_o                <= `ALUOP_BLTZAL;
@@ -383,70 +388,70 @@ module id (
                         default: ;
                     endcase
                 end
-                `ID_ANDI: begin
+                `FUNCT_ANDI: begin
                     regfile_write_enable_o <= 1'b1;
                     aluop_o                <= `ALUOP_ANDI;
                     rs_read_enable         <= 1'b1;
                     regfile_write_addr_o   <= rt;
                     instr_valid            <= 1'b1;
                 end
-                `ID_LUI: begin
+                `FUNCT_LUI: begin
                     regfile_write_enable_o <= 1'b1;
                     aluop_o                <= `ALUOP_LUI;
                     rs_read_enable         <= 1'b1;
                     regfile_write_addr_o   <= rt;
                     instr_valid            <= 1'b1;
                 end
-                `ID_ORI: begin
+                `FUNCT_ORI: begin
                     regfile_write_enable_o <= 1'b1;
                     aluop_o                <= `ALUOP_ORI;
                     rs_read_enable         <= 1'b1;
                     regfile_write_addr_o   <= rt;
                     instr_valid            <= 1'b1;
                 end
-                `ID_XORI: begin
+                `FUNCT_XORI: begin
                     regfile_write_enable_o <= 1'b1;
                     aluop_o                <= `ALUOP_XORI;
                     rs_read_enable         <= 1'b1;
                     regfile_write_addr_o   <= rt;
                     instr_valid            <= 1'b1;
                 end
-                `ID_ADDI: begin
+                `FUNCT_ADDI: begin
                     regfile_write_enable_o <= 1'b1;
                     aluop_o                <= `ALUOP_ADDI;
                     rs_read_enable         <= 1'b1;
                     regfile_write_addr_o   <= rt;
                     instr_valid            <= 1'b1;
                 end
-                `ID_ADDIU: begin
+                `FUNCT_ADDIU: begin
                     regfile_write_enable_o <= 1'b1;
                     aluop_o                <= `ALUOP_ADDIU;
                     rs_read_enable         <= 1'b1;
                     regfile_write_addr_o   <= rt;
                     instr_valid            <= 1'b1;
                 end
-                `ID_SLTI: begin
+                `FUNCT_SLTI: begin
                     regfile_write_enable_o <= 1'b1;
                     aluop_o                <= `ALUOP_SLTI;
                     rs_read_enable         <= 1'b1;
                     regfile_write_addr_o   <= rt;
                     instr_valid            <= 1'b1;
                 end
-                `ID_SLTIU: begin
+                `FUNCT_SLTIU: begin
                     regfile_write_enable_o <= 1'b1;
                     aluop_o                <= `ALUOP_SLTIU;
                     rs_read_enable         <= 1'b1;
                     regfile_write_addr_o   <= rt;
                     instr_valid            <= 1'b1;
                 end
-                `ID_J: begin
+                `FUNCT_J: begin
                     branch_addr_o       <= {pc_add4[31:28], inst_i[25:0], 2'b00};
                     branch_enable_o     <= 1'b1;
                     aluop_o             <= `ALUOP_J;
                     instr_valid         <= 1'b1;
                     next_in_delayslot_o <= 1'b1;
                 end
-                `ID_JAL: begin
+                `FUNCT_JAL: begin
                     aluop_o                <= `ALUOP_JAL;
                     pc_return_addr_o       <= pc_add8;
                     branch_enable_o        <= 1'b1;
@@ -455,7 +460,7 @@ module id (
                     next_in_delayslot_o    <= 1'b1;
                     regfile_write_enable_o <= 1'b1;
                 end
-                `ID_BEQ: begin
+                `FUNCT_BEQ: begin
                     aluop_o             <= `ALUOP_BEQ;
                     rs_read_enable      <= 1'b1;
                     rt_read_enable      <= 1'b1;
@@ -466,7 +471,7 @@ module id (
                         branch_enable_o <= 1'b1;
                     end
                 end
-                `ID_BNE: begin
+                `FUNCT_BNE: begin
                     aluop_o             <= `ALUOP_BNE;
                     rs_read_enable      <= 1'b1;
                     rt_read_enable      <= 1'b1;
@@ -477,7 +482,7 @@ module id (
                         branch_enable_o <= 1'b1;
                     end
                 end
-                `ID_BGTZ: begin
+                `FUNCT_BGTZ: begin
                     aluop_o             <= `ALUOP_BGTZ;
                     rs_read_enable      <= 1'b1;
                     instr_valid         <= 1'b1;
@@ -487,7 +492,7 @@ module id (
                         branch_enable_o <= 1'b1;
                     end
                 end
-                `ID_BLEZ: begin
+                `FUNCT_BLEZ: begin
                     aluop_o             <= `ALUOP_BLEZ;
                     rs_read_enable      <= 1'b1;
                     instr_valid         <= 1'b1;
@@ -497,7 +502,7 @@ module id (
                         branch_enable_o <= 1'b1;
                     end
                 end
-                `ID_LB: begin
+                `FUNCT_LB: begin
                     aluop_o                <= `ALUOP_LB;
                     rs_read_enable         <= 1'b1;
                     rt_read_enable         <= 1'b1;
@@ -506,7 +511,7 @@ module id (
                     regfile_write_enable_o <= 1'b1;
                     mem_to_reg_o           <= 1'b1;
                 end
-                `ID_LBU: begin
+                `FUNCT_LBU: begin
                     aluop_o                <= `ALUOP_LBU;
                     rs_read_enable         <= 1'b1;
                     rt_read_enable         <= 1'b1;
@@ -515,7 +520,7 @@ module id (
                     regfile_write_enable_o <= 1'b1;
                     mem_to_reg_o           <= 1'b1;
                 end
-                `ID_LH: begin
+                `FUNCT_LH: begin
                     aluop_o                <= `ALUOP_LH;
                     rs_read_enable         <= 1'b1;
                     rt_read_enable         <= 1'b1;
@@ -524,7 +529,7 @@ module id (
                     regfile_write_enable_o <= 1'b1;
                     mem_to_reg_o           <= 1'b1;
                 end
-                `ID_LHU: begin
+                `FUNCT_LHU: begin
                     aluop_o                <= `ALUOP_LHU;
                     rs_read_enable         <= 1'b1;
                     rt_read_enable         <= 1'b1;
@@ -533,7 +538,7 @@ module id (
                     regfile_write_enable_o <= 1'b1;
                     mem_to_reg_o           <= 1'b1;
                 end
-                `ID_LW: begin
+                `FUNCT_LW: begin
                     aluop_o                <= `ALUOP_LW;
                     rs_read_enable         <= 1'b1;
                     rt_read_enable         <= 1'b1;
@@ -542,21 +547,21 @@ module id (
                     regfile_write_enable_o <= 1'b1;
                     mem_to_reg_o           <= 1'b1;
                 end
-                `ID_SB: begin
+                `FUNCT_SB: begin
                     aluop_o            <= `ALUOP_SB;
                     instr_valid        <= 1'b1;
                     rt_read_enable     <= 1'b1;
                     rs_read_enable     <= 1'b1;
                     ram_write_enable_o <= 1'b1;
                 end
-                `ID_SH: begin
+                `FUNCT_SH: begin
                     aluop_o            <= `ALUOP_SH;
                     instr_valid        <= 1'b1;
                     rt_read_enable     <= 1'b1;
                     rs_read_enable     <= 1'b1;
                     ram_write_enable_o <= 1'b1;
                 end
-                `ID_SW: begin
+                `FUNCT_SW: begin
                     aluop_o            <= `ALUOP_SW;
                     rt_read_enable     <= 1'b1;
                     rs_read_enable     <= 1'b1;
@@ -565,24 +570,24 @@ module id (
                 end
             endcase
             if (inst_i[31:21] == 11'b00000000000) begin
-                if (funct == `ID_SLL) begin
+                if (funct == `FUNCT_SLL) begin
                     aluop_o                <= `ALUOP_SLL;
                     regfile_write_enable_o <= 1'b1;
                     rt_read_enable         <= 1'b1;
                     instr_valid            <= 1'b1;
-                end else if (funct == `ID_SRA) begin
+                end else if (funct == `FUNCT_SRA) begin
                     aluop_o                <= `ALUOP_SRA;
                     regfile_write_enable_o <= 1'b1;
                     rt_read_enable         <= 1'b1;
                     instr_valid            <= 1'b1;
-                end else if (funct == `ID_SRL) begin
+                end else if (funct == `FUNCT_SRL) begin
                     aluop_o                <= `ALUOP_SRL;
                     regfile_write_enable_o <= 1'b1;
                     rt_read_enable         <= 1'b1;
                     instr_valid            <= 1'b1;
                 end
             end
-            if (inst_i == `ID_ERET) begin
+            if (inst_i == `INST_ERET) begin
                 aluop_o     <= `ALUOP_ERET;
                 instr_valid <= 1'b1;
                 is_eret     <= 1'b1;

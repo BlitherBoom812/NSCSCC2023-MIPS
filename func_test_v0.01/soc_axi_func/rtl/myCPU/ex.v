@@ -61,6 +61,8 @@ module ex(
 reg is_overflow;
 assign exception_type_o = {exception_type_i[31:30], is_overflow, exception_type_i[28:0]};
 
+wire [4:0] regfile_write_addr_data;
+wire is_overflow_data;
 wire[31:0] alu_output_data;
 wire[31:0] hilo_data_forward, cp0_data_forward;
 wire[63:0] mul_data, div_data, hilo_write_data;
@@ -143,8 +145,8 @@ always @ (*) begin
         hi_write_enable_o <= hi_write_enable_i;
         lo_write_enable_o <= lo_write_enable_i;
         cp0_write_enable_o <= cp0_write_enable_i;
-        regfile_write_addr_o <= get_regfile_write_addr(aluop_i, regfile_write_addr_i, rs_data_i, rt_data_i, sign_extend_imm16_i, alu_output_data, inst_i); // get regfile write addr
-        is_overflow <= get_is_overflow(aluop_i, rs_data_i, rt_data_i, sign_extend_imm16_i, alu_output_data);
+        regfile_write_addr_o <= regfile_write_addr_data;
+        is_overflow <= is_overflow_data;
         cp0_write_addr_o <= inst_i[15:11];  // MTC0:cp0 write addr is rd
         alu_data_o <= alu_output_data; 
         
@@ -158,7 +160,9 @@ always @ (*) begin
         exe_stall_request_o <= div_stall;
     end
 end
-    
+
+assign regfile_write_addr_data = get_regfile_write_addr(aluop_i, regfile_write_addr_i, rs_data_i, rt_data_i, sign_extend_imm16_i, alu_output_data, inst_i); // get regfile write addr
+assign is_overflow_data = get_is_overflow(aluop_i, rs_data_i, rt_data_i, sign_extend_imm16_i, alu_output_data);
 assign alu_output_data = get_alu_data(aluop_i, inst_i, rs_data_i, rt_data_i, sign_extend_imm16_i, zero_extend_imm16_i,
                                        load_upper_imm16_i, pc_return_addr_i, hilo_data_forward, cp0_data_forward);
 
