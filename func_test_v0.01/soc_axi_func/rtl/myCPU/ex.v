@@ -1,11 +1,11 @@
 `include "defines.vh"
 module ex(
-    input                       rst,
-    input                       clk,
+    input                       reset_i,
+    input                       clock_i,
     input   [31:0]              pc_i,
     input   [31:0]              rs_data_i,
     input   [31:0]              rt_data_i,
-    input   [31:0]              instr_i,
+    input   [31:0]              inst_i,
     input   [7:0]               aluop_i,
     input   [4:0]               regfile_write_addr_i,
     input                       now_in_delayslot_i,
@@ -23,17 +23,17 @@ module ex(
     input   [31:0]              zero_extend_imm16_i,
     input   [31:0]              load_upper_imm16_i,
     
-    input                       bypass_mem_hi_write_enable_i,
-    input   [31:0]              bypass_mem_hi_write_data_i,
-    input                       bypass_mem_lo_write_enable_i,
-    input   [31:0]              bypass_mem_lo_write_data_i,
-    input                       bypass_mem_cp0_write_enable_i,
-    input   [4:0]               bypass_mem_cp0_write_addr_i,
-    input   [31:0]              bypass_mem_cp0_write_data_i,
-    input                       bypass_wb_hi_write_enable_i,
-    input   [31:0]              bypass_wb_hi_write_data_i,
-    input                       bypass_wb_lo_write_enable_i,
-    input   [31:0]              bypass_wb_lo_write_data_i,
+    input                       forward_mem_hi_write_enable_i,
+    input   [31:0]              forward_mem_hi_write_data_i,
+    input                       forward_mem_lo_write_enable_i,
+    input   [31:0]              forward_mem_lo_write_data_i,
+    input                       forward_mem_cp0_write_enable_i,
+    input   [4:0]               forward_mem_cp0_write_addr_i,
+    input   [31:0]              forward_mem_cp0_write_data_i,
+    input                       forward_wb_hi_write_enable_i,
+    input   [31:0]              forward_wb_hi_write_data_i,
+    input                       forward_wb_lo_write_enable_i,
+    input   [31:0]              forward_wb_lo_write_data_i,
     
     input                       hilo_read_addr_i,
     input   [4:0]               cp0_read_addr_i,
@@ -71,8 +71,8 @@ assign flag_unsigned = (aluop_i == `ALUOP_DIVU) ? 1 : 0;
 reg div_done_t;
 assign div_stall = (aluop_i == `ALUOP_DIV || aluop_i == `ALUOP_DIVU) ? !div_done_t : 0;
 reg [31:0] pre_pc;
-always @ (posedge clk) begin
-    if (rst == 1'b0) begin
+always @ (posedge clock_i) begin
+    if (reset_i == 1'b0) begin
         pre_pc = 32'b0;
         div_done_t = 1'b0;
     end 
@@ -88,33 +88,33 @@ always @ (posedge clk) begin
 end
 
 assign hilo_data_forward = get_hilo_data_forward(hilo_data_i, hilo_read_addr_i,
-                                                bypass_mem_hi_write_enable_i, bypass_mem_hi_write_data_i,
-                                                bypass_mem_lo_write_enable_i, bypass_mem_lo_write_data_i,
-                                                bypass_wb_hi_write_enable_i, bypass_wb_hi_write_data_i,
-                                                bypass_wb_lo_write_enable_i, bypass_wb_lo_write_data_i);
+                                                forward_mem_hi_write_enable_i, forward_mem_hi_write_data_i,
+                                                forward_mem_lo_write_enable_i, forward_mem_lo_write_data_i,
+                                                forward_wb_hi_write_enable_i, forward_wb_hi_write_data_i,
+                                                forward_wb_lo_write_enable_i, forward_wb_lo_write_data_i);
 
-function [31:0] get_hilo_data_forward(input [31:0] hilo_data, input hilo_read_addr, input bypass_mem_hi_write_enable,
-                                      input [31:0] bypass_mem_hi_write_data, input bypass_mem_lo_write_enable,
-                                      input [31:0] bypass_mem_lo_write_data, input bypass_wb_hi_write_enable,
-                                      input [31:0] bypass_wb_hi_write_data, input bypass_wb_lo_write_enable,
-                                      input [31:0] bypass_wb_lo_write_data);
+function [31:0] get_hilo_data_forward(input [31:0] hilo_data, input hilo_read_addr, input forward_mem_hi_write_enable,
+                                      input [31:0] forward_mem_hi_write_data, input forward_mem_lo_write_enable,
+                                      input [31:0] forward_mem_lo_write_data, input forward_wb_hi_write_enable,
+                                      input [31:0] forward_wb_hi_write_data, input forward_wb_lo_write_enable,
+                                      input [31:0] forward_wb_lo_write_data);
     begin
         get_hilo_data_forward = hilo_data;       
         if (hilo_read_addr == 0) begin //  read lo reg
-            if (bypass_wb_lo_write_enable) get_hilo_data_forward = bypass_wb_lo_write_data;
-            if (bypass_mem_lo_write_enable) get_hilo_data_forward = bypass_mem_lo_write_data;
+            if (forward_wb_lo_write_enable) get_hilo_data_forward = forward_wb_lo_write_data;
+            if (forward_mem_lo_write_enable) get_hilo_data_forward = forward_mem_lo_write_data;
         end 
         else begin // read hi reg
-            if (bypass_wb_hi_write_enable) get_hilo_data_forward = bypass_wb_hi_write_data;
-            if (bypass_mem_hi_write_enable) get_hilo_data_forward = bypass_mem_hi_write_data;
+            if (forward_wb_hi_write_enable) get_hilo_data_forward = forward_wb_hi_write_data;
+            if (forward_mem_hi_write_enable) get_hilo_data_forward = forward_mem_hi_write_data;
         end
     end
 endfunction
 
-assign cp0_data_forward = (bypass_mem_cp0_write_enable_i == 1 && bypass_mem_cp0_write_addr_i == cp0_read_addr_i) ? bypass_mem_cp0_write_data_i : cp0_data_i;
+assign cp0_data_forward = (forward_mem_cp0_write_enable_i == 1 && forward_mem_cp0_write_addr_i == cp0_read_addr_i) ? forward_mem_cp0_write_data_i : cp0_data_i;
     
 always @ (*) begin
-    if (rst == 1'b0) begin
+    if (reset_i == 1'b0) begin
         pc_o <= 32'b0;
         aluop_o <= 8'h00;
         now_in_delayslot_o <= 1'b0;
@@ -143,9 +143,9 @@ always @ (*) begin
         hi_write_enable_o <= hi_write_enable_i;
         lo_write_enable_o <= lo_write_enable_i;
         cp0_write_enable_o <= cp0_write_enable_i;
-        regfile_write_addr_o <= get_regfile_write_addr(aluop_i, regfile_write_addr_i, rs_data_i, rt_data_i, sign_extend_imm16_i, alu_output_data, instr_i); // get regfile write addr
+        regfile_write_addr_o <= get_regfile_write_addr(aluop_i, regfile_write_addr_i, rs_data_i, rt_data_i, sign_extend_imm16_i, alu_output_data, inst_i); // get regfile write addr
         is_overflow <= get_is_overflow(aluop_i, rs_data_i, rt_data_i, sign_extend_imm16_i, alu_output_data);
-        cp0_write_addr_o <= instr_i[15:11];  // MTC0:cp0 write addr is rd
+        cp0_write_addr_o <= inst_i[15:11];  // MTC0:cp0 write addr is rd
         alu_data_o <= alu_output_data; 
         
         ram_write_data_o <= rt_data_i;
@@ -159,10 +159,10 @@ always @ (*) begin
     end
 end
     
-assign alu_output_data = get_alu_data(aluop_i, instr_i, rs_data_i, rt_data_i, sign_extend_imm16_i, zero_extend_imm16_i,
+assign alu_output_data = get_alu_data(aluop_i, inst_i, rs_data_i, rt_data_i, sign_extend_imm16_i, zero_extend_imm16_i,
                                        load_upper_imm16_i, pc_return_addr_i, hilo_data_forward, cp0_data_forward);
 
-function [31:0] get_alu_data(input [7:0] aluop, input [31:0] instr, input [31:0] rs_value, input [31:0] rt_value,
+function [31:0] get_alu_data(input [7:0] aluop, input [31:0] inst, input [31:0] rs_value, input [31:0] rt_value,
                              input [31:0] sign_extend_imm16, input [31:0] zero_extend_imm16, input [31:0] load_upper_imm16,
                              input [31:0] pc_return_addr, input [31:0] hilo_data_forward, input [31:0] cp0_data_forward);
     case (aluop)
@@ -184,11 +184,11 @@ function [31:0] get_alu_data(input [7:0] aluop, input [31:0] instr, input [31:0]
         `ALUOP_ORI : get_alu_data = rs_value | zero_extend_imm16;        
         `ALUOP_XOR : get_alu_data = rs_value ^ rt_value;        
         `ALUOP_XORI : get_alu_data = rs_value ^ zero_extend_imm16;        
-        `ALUOP_SLL : get_alu_data = rt_value << instr[10:6];        
+        `ALUOP_SLL : get_alu_data = rt_value << inst[10:6];        
         `ALUOP_SLLV : get_alu_data = rt_value << rs_value[4:0];        
-        `ALUOP_SRA : get_alu_data = $signed(rt_value) >>> instr[10:6];        
+        `ALUOP_SRA : get_alu_data = $signed(rt_value) >>> inst[10:6];        
         `ALUOP_SRAV : get_alu_data = $signed(rt_value) >>> rs_value[4:0];        
-        `ALUOP_SRL : get_alu_data = rt_value >> instr[10:6];        
+        `ALUOP_SRL : get_alu_data = rt_value >> inst[10:6];        
         `ALUOP_SRLV : get_alu_data = rt_value >> rs_value[4:0];        
         `ALUOP_BGEZAL : get_alu_data = pc_return_addr;        
         `ALUOP_BLTZAL : get_alu_data = pc_return_addr;        
@@ -232,7 +232,7 @@ endfunction
 
 function [4:0] get_regfile_write_addr(input [7:0] aluop, input [4:0] regfile_write_addr, input [31:0] rs_value,
                                       input [31:0] rt_value, input [31:0] sign_extend_imm16, input [31:0] alu_output_data,
-                                      input [31:0] instr);
+                                      input [31:0] inst);
     begin
         get_regfile_write_addr = regfile_write_addr;        
         case(aluop)
@@ -251,7 +251,7 @@ function [4:0] get_regfile_write_addr(input [7:0] aluop, input [4:0] regfile_wri
         `ALUOP_JAL:     get_regfile_write_addr = 5'b11111;
         `ALUOP_BLTZAL:  get_regfile_write_addr = 5'b11111;
         `ALUOP_BGEZAL:  get_regfile_write_addr = 5'b11111;            
-        `ALUOP_MFC0: get_regfile_write_addr = instr[20:16];
+        `ALUOP_MFC0: get_regfile_write_addr = inst[20:16];
         default: get_regfile_write_addr = regfile_write_addr;
         endcase
     end
@@ -283,8 +283,8 @@ function [63:0] get_hilo_write_data(input [7:0] aluop, input [63:0] mul_data, in
 endfunction
 
 div_wrapper div_wrapper0(
-    .clock(clk),
-    .reset(rst),
+    .clock(clock_i),
+    .reset(reset_i),
     .start(start),
     .flag_unsigned(flag_unsigned),
     .operand1(rs_data_i),
