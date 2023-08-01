@@ -395,7 +395,7 @@ module mips_top (
         .mem_to_reg_i          (ex_mem_mem_to_reg_mem),
         .ram_read_addr_i       (ex_mem_ram_read_addr_mem),
         .ram_read_data_i       (ram_read_data),
-        .rst                   (rst),
+        .reset_i                   (rst),
 
         .store_pc_o            (mem_store_pc),
         .access_mem_addr_o     (mem_access_mem_addr),
@@ -421,31 +421,32 @@ module mips_top (
     );
 
     mem_wb mips_mem_wb (
-        .mem_regfile_write_enable(mem_regfile_write_enable_mem_wb),
-        .mem_regfile_write_addr  (mem_regfile_write_addr_mem_wb),
-        .mem_hi_write_enable     (mem_hi_write_enable_mem_wb),
-        .mem_lo_write_enable     (mem_lo_write_enable_mem_wb),
-        .mem_hi_write_data       (mem_hi_write_data_mem_wb),
-        .mem_lo_write_data       (mem_lo_write_data_mem_wb),
-        .mem_cp0_write_enable    (mem_cp0_write_enable),
-        .mem_cp0_write_addr      (mem_cp0_write_addr),
-        .mem_cp0_write_data      (mem_cp0_write_data),
-        .mem_regfile_write_data  (mem_regfile_write_data_mem_wb),
-        .stall                   ({data_stall, exe_stall_request, id_stall_request, inst_stall}),
-        .exception               (is_exception),
-        .rst                     (rst),
-        .clk                     (clk),
+        .reset_i                   (rst),
+        .clock_i                   (clk),
+        .mem_regfile_write_enable_i(mem_regfile_write_enable_mem_wb),
+        .mem_regfile_write_addr_i  (mem_regfile_write_addr_mem_wb),
+        .mem_hi_write_enable_i     (mem_hi_write_enable_mem_wb),
+        .mem_lo_write_enable_i     (mem_lo_write_enable_mem_wb),
+        .mem_hi_write_data_i       (mem_hi_write_data_mem_wb),
+        .mem_lo_write_data_i       (mem_lo_write_data_mem_wb),
+        .mem_cp0_write_enable_i    (mem_cp0_write_enable),
+        .mem_cp0_write_addr_i      (mem_cp0_write_addr),
+        .mem_cp0_write_data_i      (mem_cp0_write_data),
+        .mem_regfile_write_data_i  (mem_regfile_write_data_mem_wb),
+        .stall_i                   ({data_stall, exe_stall_request, id_stall_request, inst_stall}),
+        .exception_i               (is_exception),
 
-        .wb_regfile_write_enable(mem_wb_regfile_write_enable),
-        .wb_regfile_write_addr  (mem_wb_regfile_write_addr),
-        .wb_regfile_write_data  (mem_wb_regfile_write_data),
-        .wb_hi_write_enable     (mem_wb_hi_write_enable),
-        .wb_lo_write_enable     (mem_wb_lo_write_enable),
-        .wb_hi_write_data       (mem_wb_hi_write_data),
-        .wb_lo_write_data       (mem_wb_lo_write_data),
 
-        .in_wb_pc(mem_store_pc),
-        .wb_pc   (debug_wb_pc)
+        .wb_regfile_write_enable_o(mem_wb_regfile_write_enable),
+        .wb_regfile_write_addr_o  (mem_wb_regfile_write_addr),
+        .wb_regfile_write_data_o  (mem_wb_regfile_write_data),
+        .wb_hi_write_enable_o     (mem_wb_hi_write_enable),
+        .wb_lo_write_enable_o     (mem_wb_lo_write_enable),
+        .wb_hi_write_data_o       (mem_wb_hi_write_data),
+        .wb_lo_write_data_o       (mem_wb_lo_write_data),
+
+        .in_wb_pc_i(mem_store_pc),
+        .wb_pc_o   (debug_wb_pc)
     );
 
     regfile mips_regfile (
