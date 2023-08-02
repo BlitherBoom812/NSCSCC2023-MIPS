@@ -2,15 +2,15 @@
 `include "defines.vh"
 module tb_mul ();
 
-    parameter PERIOD <= 10;
+    parameter PERIOD = 10;
     // mul Inputs
-    reg  [31:0] mul1 <= 0;
-    reg  [31:0] mul2 <= 0;
-    reg         clk <= 0;
-    reg         rst <= 0;
-    reg         reset <= `RST_ENABLE;
-    reg         valid <= 0;
-    reg         mul_signed <= 0;
+    reg  [31:0] mul1 = 0;
+    reg  [31:0] mul2 = 0;
+    reg         clk = 0;
+    reg         rst = 0;
+    reg         reset = `RST_ENABLE;
+    reg         valid = 0;
+    reg         mul_signed = 0;
 
     // mul Outputs
     wire [65:0] result;

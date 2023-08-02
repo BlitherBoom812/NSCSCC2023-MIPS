@@ -1,390 +1,308 @@
-`include "defines.vh"
-module mul (
-    input      [31:0] mul1,
-    input      [31:0] mul2,
-    output reg [65:0] result = 0,
-    input             clk,
-    input             reset,
-    input             valid
-);
+// module mul (
+//     input [31:0] operand1,
+//     input [31:0] operand2,
+//     input        clock,
+//     input        reset,
+//     input        start,
+//     input        flag_unsigned,
 
-    reg  [ 4:0] i = 0;
-    wire [31:0] re_mul1;
-    reg  [65:0] sum          [15:0];
-    reg  [ 1:0] state = 2'b0;
+//     output reg [63:0] result = 0,
+//     output reg        done = 0
+// );
 
-    parameter a = 2'b00;
-    parameter b = 2'b01;
-    parameter c = 2'b10;
+//     wire [31:0] re_operand1;
+//     reg  [63:0] sum          [15:0];
+//     reg  [ 2:0] state = 3'b0;
 
-    always @(posedge clk) begin
-        if (reset == `RST_ENABLE) begin
-            result <= 0;
-            state  <= a;
-        end else if (valid == 1'b1) begin
+//     parameter A = 3'b000;
+//     parameter B = 3'b001;
+//     parameter C = 3'b010;
+//     parameter D = 3'b011;
 
-            case (state)
-                a: begin
+//     always @(posedge clock) begin
+//         if (reset == `RST_ENABLE) begin
+//             result <= 0;
+//             state  <= A;
+//         end else begin
+//             case (state)
+//                 A: begin
+//                     if (start == 1'b1) begin
+//                         case ({
+//                             operand2[1:0], 1'b0
+//                         })
+//                             3'b011:  sum[0] <= {{31{1'b0}}, operand1, {1{1'b0}}};
+//                             3'b001:  sum[0] <= {{32{1'b0}}, operand1, {0{1'b0}}};
+//                             3'b010:  sum[0] <= {{32{1'b0}}, operand1, {0{1'b0}}};
+//                             3'b100:  sum[0] <= {{31{1'b0}}, re_operand1, {1{1'b0}}};
+//                             3'b101:  sum[0] <= {{32{1'b0}}, re_operand1, {0{1'b0}}};
+//                             3'b110:  sum[0] <= {{32{1'b0}}, re_operand1, {0{1'b0}}};
+//                             default: sum[0] <= 64'b0;
+//                         endcase
 
-                    for (i = 0; i < 16; i = i + 1) begin
-                        sum[i] = {65{1'b0}};
-                    end
+//                         case (operand2[3:1])
+//                             3'b011:  sum[1] <= {{29{1'b0}}, operand1, {3{1'b0}}};
+//                             3'b001:  sum[1] <= {{30{1'b0}}, operand1, {2{1'b0}}};
+//                             3'b010:  sum[1] <= {{30{1'b0}}, operand1, {2{1'b0}}};
+//                             3'b100:  sum[1] <= {{31{1'b0}}, re_operand1, {3{1'b0}}};
+//                             3'b101:  sum[1] <= {{30{1'b0}}, re_operand1, {2{1'b0}}};
+//                             3'b110:  sum[1] <= {{30{1'b0}}, re_operand1, {2{1'b0}}};
+//                             default: sum[1] <= 64'b0;
+//                         endcase
 
-                    case ({
-                        mul2[1:0], 1'b0
-                    })
-                        3'b011: sum[0][64:33] <= (mul1);
-                        3'b001: sum[0][64:33] <= (mul1);
-                        3'b010: sum[0][65:34] <= (mul1);
-                        3'b100: sum[0][65:34] <= (re_mul1);
-                        3'b101: sum[0][65:34] <= (re_mul1);
-                        3'b110: sum[0][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
+//                         case (operand2[5:3])
+//                             3'b011:  sum[2] <= {{27{1'b0}}, operand1, {5{1'b0}}};
+//                             3'b001:  sum[2] <= {{28{1'b0}}, operand1, {4{1'b0}}};
+//                             3'b010:  sum[2] <= {{28{1'b0}}, operand1, {4{1'b0}}};
+//                             3'b100:  sum[2] <= {{27{1'b0}}, re_operand1, {5{1'b0}}};
+//                             3'b101:  sum[2] <= {{28{1'b0}}, re_operand1, {4{1'b0}}};
+//                             3'b110:  sum[2] <= {{28{1'b0}}, re_operand1, {4{1'b0}}};
+//                             default: sum[2] <= 64'b0;
+//                         endcase
+
+//                         case (operand2[7:5])
+//                             3'b011:  sum[3] <= {{25{1'b0}}, operand1, {7{1'b0}}};
+//                             3'b001:  sum[3] <= {{26{1'b0}}, operand1, {6{1'b0}}};
+//                             3'b010:  sum[3] <= {{26{1'b0}}, operand1, {6{1'b0}}};
+//                             3'b100:  sum[3] <= {{25{1'b0}}, re_operand1, {7{1'b0}}};
+//                             3'b101:  sum[3] <= {{26{1'b0}}, re_operand1, {6{1'b0}}};
+//                             3'b110:  sum[3] <= {{26{1'b0}}, re_operand1, {6{1'b0}}};
+//                             default: sum[3] <= 64'b0;
+//                         endcase
+
+//                         case (operand2[9:7])
+//                             3'b011:  sum[4] <= {{23{1'b0}}, operand1, {9{1'b0}}};
+//                             3'b001:  sum[4] <= {{24{1'b0}}, operand1, {8{1'b0}}};
+//                             3'b010:  sum[4] <= {{24{1'b0}}, operand1, {8{1'b0}}};
+//                             3'b100:  sum[4] <= {{23{1'b0}}, re_operand1, {9{1'b0}}};
+//                             3'b101:  sum[4] <= {{24{1'b0}}, re_operand1, {8{1'b0}}};
+//                             3'b110:  sum[4] <= {{24{1'b0}}, re_operand1, {8{1'b0}}};
+//                             default: sum[4] <= 64'b0;
+//                         endcase
+
+//                         case (operand2[11:9])
+//                             3'b011:  sum[5] <= {{21{1'b0}}, operand1, {11{1'b0}}};
+//                             3'b001:  sum[5] <= {{22{1'b0}}, operand1, {10{1'b0}}};
+//                             3'b010:  sum[5] <= {{22{1'b0}}, operand1, {10{1'b0}}};
+//                             3'b100:  sum[5] <= {{21{1'b0}}, re_operand1, {11{1'b0}}};
+//                             3'b101:  sum[5] <= {{22{1'b0}}, re_operand1, {10{1'b0}}};
+//                             3'b110:  sum[5] <= {{22{1'b0}}, re_operand1, {10{1'b0}}};
+//                             default: sum[5] <= 64'b0;
+//                         endcase
+
+//                         case (operand2[13:11])
+//                             3'b011:  sum[6] <= {{19{1'b0}}, operand1, {13{1'b0}}};
+//                             3'b001:  sum[6] <= {{20{1'b0}}, operand1, {12{1'b0}}};
+//                             3'b010:  sum[6] <= {{20{1'b0}}, operand1, {12{1'b0}}};
+//                             3'b100:  sum[6] <= {{19{1'b0}}, re_operand1, {13{1'b0}}};
+//                             3'b101:  sum[6] <= {{20{1'b0}}, re_operand1, {12{1'b0}}};
+//                             3'b110:  sum[6] <= {{20{1'b0}}, re_operand1, {12{1'b0}}};
+//                             default: sum[6] <= 64'b0;
+//                         endcase
+
+//                         case (operand2[15:13])
+//                             3'b011:  sum[7] <= {{17{1'b0}}, operand1, {15{1'b0}}};
+//                             3'b001:  sum[7] <= {{18{1'b0}}, operand1, {14{1'b0}}};
+//                             3'b010:  sum[7] <= {{18{1'b0}}, operand1, {14{1'b0}}};
+//                             3'b100:  sum[7] <= {{17{1'b0}}, re_operand1, {15{1'b0}}};
+//                             3'b101:  sum[7] <= {{18{1'b0}}, re_operand1, {14{1'b0}}};
+//                             3'b110:  sum[7] <= {{18{1'b0}}, re_operand1, {14{1'b0}}};
+//                             default: sum[7] <= 64'b0;
+//                         endcase
+
+//                         case (operand2[17:15])
+//                             3'b011:  sum[8] <= {{15{1'b0}}, operand1, {17{1'b0}}};
+//                             3'b001:  sum[8] <= {{16{1'b0}}, operand1, {16{1'b0}}};
+//                             3'b010:  sum[8] <= {{16{1'b0}}, operand1, {16{1'b0}}};
+//                             3'b100:  sum[8] <= {{15{1'b0}}, re_operand1, {17{1'b0}}};
+//                             3'b101:  sum[8] <= {{16{1'b0}}, re_operand1, {16{1'b0}}};
+//                             3'b110:  sum[8] <= {{16{1'b0}}, re_operand1, {16{1'b0}}};
+//                             default: sum[8] <= 64'b0;
+//                         endcase
+
+//                         case (operand2[19:17])
+//                             3'b011:  sum[9] <= {{13{1'b0}}, operand1, {19{1'b0}}};
+//                             3'b001:  sum[9] <= {{14{1'b0}}, operand1, {18{1'b0}}};
+//                             3'b010:  sum[9] <= {{14{1'b0}}, operand1, {18{1'b0}}};
+//                             3'b100:  sum[9] <= {{13{1'b0}}, re_operand1, {19{1'b0}}};
+//                             3'b101:  sum[9] <= {{14{1'b0}}, re_operand1, {18{1'b0}}};
+//                             3'b110:  sum[9] <= {{14{1'b0}}, re_operand1, {18{1'b0}}};
+//                             default: sum[9] <= 64'b0;
+//                         endcase
+
+//                         case (operand2[21:19])
+//                             3'b011:  sum[10] <= {{11{1'b0}}, operand1, {21{1'b0}}};
+//                             3'b001:  sum[10] <= {{12{1'b0}}, operand1, {20{1'b0}}};
+//                             3'b010:  sum[10] <= {{12{1'b0}}, operand1, {20{1'b0}}};
+//                             3'b100:  sum[10] <= {{11{1'b0}}, re_operand1, {21{1'b0}}};
+//                             3'b101:  sum[10] <= {{12{1'b0}}, re_operand1, {20{1'b0}}};
+//                             3'b110:  sum[10] <= {{12{1'b0}}, re_operand1, {20{1'b0}}};
+//                             default: sum[10] <= 64'b0;
+//                         endcase
+
+//                         case (operand2[23:21])
+//                             3'b011:  sum[11] <= {{9{1'b0}}, operand1, {23{1'b0}}};
+//                             3'b001:  sum[11] <= {{10{1'b0}}, operand1, {22{1'b0}}};
+//                             3'b010:  sum[11] <= {{10{1'b0}}, operand1, {22{1'b0}}};
+//                             3'b100:  sum[11] <= {{9{1'b0}}, re_operand1, {23{1'b0}}};
+//                             3'b101:  sum[11] <= {{10{1'b0}}, re_operand1, {22{1'b0}}};
+//                             3'b110:  sum[11] <= {{10{1'b0}}, re_operand1, {22{1'b0}}};
+//                             default: sum[11] <= 64'b0;
+//                         endcase
+
+//                         case (operand2[25:23])
+//                             3'b011:  sum[12] <= {{7{1'b0}}, operand1, {25{1'b0}}};
+//                             3'b001:  sum[12] <= {{8{1'b0}}, operand1, {24{1'b0}}};
+//                             3'b010:  sum[12] <= {{8{1'b0}}, operand1, {24{1'b0}}};
+//                             3'b100:  sum[12] <= {{7{1'b0}}, re_operand1, {25{1'b0}}};
+//                             3'b101:  sum[12] <= {{8{1'b0}}, re_operand1, {24{1'b0}}};
+//                             3'b110:  sum[12] <= {{8{1'b0}}, re_operand1, {24{1'b0}}};
+//                             default: sum[12] <= 64'b0;
+//                         endcase
+
+//                         case (operand2[27:25])
+//                             3'b011:  sum[13] <= {{5{1'b0}}, operand1, {27{1'b0}}};
+//                             3'b001:  sum[13] <= {{6{1'b0}}, operand1, {26{1'b0}}};
+//                             3'b010:  sum[13] <= {{6{1'b0}}, operand1, {26{1'b0}}};
+//                             3'b100:  sum[13] <= {{5{1'b0}}, re_operand1, {27{1'b0}}};
+//                             3'b101:  sum[13] <= {{6{1'b0}}, re_operand1, {26{1'b0}}};
+//                             3'b110:  sum[13] <= {{6{1'b0}}, re_operand1, {26{1'b0}}};
+//                             default: sum[13] <= 64'b0;
+//                         endcase
+
+//                         case (operand2[29:27])
+//                             3'b011:  sum[14] <= {{3{1'b0}}, operand1, {29{1'b0}}};
+//                             3'b001:  sum[14] <= {{4{1'b0}}, operand1, {28{1'b0}}};
+//                             3'b010:  sum[14] <= {{4{1'b0}}, operand1, {28{1'b0}}};
+//                             3'b100:  sum[14] <= {{3{1'b0}}, re_operand1, {29{1'b0}}};
+//                             3'b101:  sum[14] <= {{4{1'b0}}, re_operand1, {28{1'b0}}};
+//                             3'b110:  sum[14] <= {{4{1'b0}}, re_operand1, {28{1'b0}}};
+//                             default: sum[14] <= 64'b0;
+//                         endcase
+
+//                         case (operand2[31:29])
+//                             3'b011:  sum[15] <= {{1{1'b0}}, operand1, {31{1'b0}}};
+//                             3'b001:  sum[15] <= {{2{1'b0}}, operand1, {30{1'b0}}};
+//                             3'b010:  sum[15] <= {{2{1'b0}}, operand1, {30{1'b0}}};
+//                             3'b100:  sum[15] <= {{1{1'b0}}, re_operand1, {31{1'b0}}};
+//                             3'b101:  sum[15] <= {{2{1'b0}}, re_operand1, {30{1'b0}}};
+//                             3'b110:  sum[15] <= {{2{1'b0}}, re_operand1, {30{1'b0}}};
+//                             default: sum[15] <= 64'b0;
+//                         endcase
+
+//                         if (flag_unsigned) state <= C;
+//                         else state <= B;
+
+//                     end
+//                     done <= 0;
+//                 end
+
+//                 B: begin
+//                     if ({operand2[1:0], 1'b0} == 3'b011 || {operand2[1:0], 1'b0} == 3'b100)
+//                         if (sum[0][32] == 1'b1) sum[0][63:33] <= {31{1'b1}};
+//                         else;
+//                     else if (sum[0][31] == 1'b1) sum[0][63:32] <= {32{1'b1}};
+
+//                     if (operand2[3:1] == 3'b011 || operand2[3:1] == 3'b100)
+//                         if (sum[1][34] == 1'b1) sum[1][63:35] <= {29{1'b1}};
+//                         else;
+//                     else if (sum[1][33] == 1'b1) sum[1][63:34] <= {30{1'b1}};
+
+//                     if (operand2[5:3] == 3'b011 || operand2[5:3] == 3'b100)
+//                         if (sum[2][36] == 1'b1) sum[2][63:37] <= {27{1'b1}};
+//                         else;
+//                     else if (sum[2][35] == 1'b1) sum[2][63:36] <= {28{1'b1}};
+
+//                     if (operand2[7:5] == 3'b011 || operand2[7:5] == 3'b100)
+//                         if (sum[3][38] == 1'b1) sum[3][63:39] <= {25{1'b1}};
+//                         else;
+//                     else if (sum[3][37] == 1'b1) sum[3][63:38] <= {26{1'b1}};
+
+//                     if (operand2[9:7] == 3'b011 || operand2[9:7] == 3'b100)
+//                         if (sum[4][40] == 1'b1) sum[4][63:41] <= {23{1'b1}};
+//                         else;
+//                     else if (sum[4][39] == 1'b1) sum[4][63:40] <= {24{1'b1}};
+
+//                     if (operand2[11:9] == 3'b011 || operand2[11:9] == 3'b100)
+//                         if (sum[5][42] == 1'b1) sum[5][63:43] <= {21{1'b1}};
+//                         else;
+//                     else if (sum[5][41] == 1'b1) sum[5][63:42] <= {22{1'b1}};
+
+//                     if (operand2[13:11] == 3'b011 || operand2[13:11] == 3'b100)
+//                         if (sum[6][44] == 1'b1) sum[6][63:45] <= {19{1'b1}};
+//                         else;
+//                     else if (sum[6][43] == 1'b1) sum[6][63:44] <= {20{1'b1}};
+
+//                     if (operand2[15:13] == 3'b011 || operand2[15:13] == 3'b100)
+//                         if (sum[7][46] == 1'b1) sum[7][63:47] <= {17{1'b1}};
+//                         else;
+//                     else if (sum[7][45] == 1'b1) sum[7][63:46] <= {18{1'b1}};
+
+//                     if (operand2[17:15] == 3'b011 || operand2[17:15] == 3'b100)
+//                         if (sum[8][48] == 1'b1) sum[8][63:49] <= {15{1'b1}};
+//                         else;
+//                     else if (sum[8][47] == 1'b1) sum[8][63:48] <= {16{1'b1}};
+
+//                     if (operand2[19:17] == 3'b011 || operand2[19:17] == 3'b100)
+//                         if (sum[9][50] == 1'b1) sum[9][63:51] <= {13{1'b1}};
+//                         else;
+//                     else if (sum[9][49] == 1'b1) sum[9][63:50] <= {14{1'b1}};
+
+//                     if (operand2[21:19] == 3'b011 || operand2[21:19] == 3'b100)
+//                         if (sum[10][52] == 1'b1) sum[10][63:53] <= {11{1'b1}};
+//                         else;
+//                     else if (sum[10][51] == 1'b1) sum[10][63:52] <= {12{1'b1}};
+
+//                     if (operand2[23:21] == 3'b011 || operand2[23:21] == 3'b100)
+//                         if (sum[11][54] == 1'b1) sum[11][63:55] <= {9{1'b1}};
+//                         else;
+//                     else if (sum[11][53] == 1'b1) sum[11][63:54] <= {10{1'b1}};
+
+//                     if (operand2[25:23] == 3'b011 || operand2[25:23] == 3'b100)
+//                         if (sum[12][56] == 1'b1) sum[12][63:57] <= {7{1'b1}};
+//                         else;
+//                     else if (sum[12][55] == 1'b1) sum[12][63:56] <= {8{1'b1}};
+
+//                     if (operand2[27:25] == 3'b011 || operand2[27:25] == 3'b100)
+//                         if (sum[13][58] == 1'b1) sum[13][63:59] <= {5{1'b1}};
+//                         else;
+//                     else if (sum[13][57] == 1'b1) sum[13][63:58] <= {6{1'b1}};
+
+//                     if (operand2[29:27] == 3'b011 || operand2[29:27] == 3'b100)
+//                         if (sum[14][60] == 1'b1) sum[14][63:61] <= {3{1'b1}};
+//                         else;
+//                     else if (sum[14][59] == 1'b1) sum[14][63:60] <= {4{1'b1}};
+
+//                     if (operand2[31:29] == 3'b011 || operand2[31:29] == 3'b100)
+//                         if (sum[15][62] == 1'b1) sum[15][63] <= 1'b1;
+//                         else;
+//                     else if (sum[15][61] == 1'b1) sum[15][63:62] <= {2{1'b1}};
+
+//                     state <= C;
+//                 end
+
+//                 C: begin
+
+//                     sum[0] <= sum[0] + sum[1] + sum[2] + sum[3];
+//                     sum[1] <= sum[4] + sum[5] + sum[6] + sum[7];
+//                     sum[2] <= sum[8] + sum[9] + sum[10] + sum[11];
+//                     sum[3] <= sum[12] + sum[13] + sum[14] + sum[15];
+//                     state  <= D;
+
+//                 end
+
+//                 D: begin
+
+//                     result <= sum[0] + sum[1] + sum[2] + sum[3];
+//                     done   <= 1;
+//                     state  <= A;
+
+//                 end
 
 
-                    case (mul2[3:1])
-                        3'b011: sum[1][65:34] <= (mul1);
-                        3'b001: sum[1][65:34] <= (mul1);
-                        3'b010: sum[1][65:34] <= (mul1);
-                        3'b100: sum[1][65:34] <= (re_mul1);
-                        3'b101: sum[1][65:34] <= (re_mul1);
-                        3'b110: sum[1][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
+//             endcase
+//         end
+//     end
 
+//     assign re_operand1 = -operand1;
 
-                    case (mul2[5:3])
-                        3'b011: sum[2][65:34] <= (mul1);
-                        3'b001: sum[2][65:34] <= (mul1);
-                        3'b010: sum[2][65:34] <= (mul1);
-                        3'b100: sum[2][65:34] <= (re_mul1);
-                        3'b101: sum[2][65:34] <= (re_mul1);
-                        3'b110: sum[2][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
-
-
-                    case (mul2[7:5])
-                        3'b011: sum[3][65:34] <= (mul1);
-                        3'b001: sum[3][65:34] <= (mul1);
-                        3'b010: sum[3][65:34] <= (mul1);
-                        3'b100: sum[3][65:34] <= (re_mul1);
-                        3'b101: sum[3][65:34] <= (re_mul1);
-                        3'b110: sum[3][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
-
-
-                    case (mul2[9:7])
-                        3'b011: sum[4][65:34] <= (mul1);
-                        3'b001: sum[4][65:34] <= (mul1);
-                        3'b010: sum[4][65:34] <= (mul1);
-                        3'b100: sum[4][65:34] <= (re_mul1);
-                        3'b101: sum[4][65:34] <= (re_mul1);
-                        3'b110: sum[4][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
-
-
-                    case (mul2[11:9])
-                        3'b011: sum[5][65:34] <= (mul1);
-                        3'b001: sum[5][65:34] <= (mul1);
-                        3'b010: sum[5][65:34] <= (mul1);
-                        3'b100: sum[5][65:34] <= (re_mul1);
-                        3'b101: sum[5][65:34] <= (re_mul1);
-                        3'b110: sum[5][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
-
-
-                    case (mul2[13:11])
-                        3'b011: sum[6][65:34] <= (mul1);
-                        3'b001: sum[6][65:34] <= (mul1);
-                        3'b010: sum[6][65:34] <= (mul1);
-                        3'b100: sum[6][65:34] <= (re_mul1);
-                        3'b101: sum[6][65:34] <= (re_mul1);
-                        3'b110: sum[6][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
-
-
-                    case (mul2[15:13])
-                        3'b011: sum[7][65:34] <= (mul1);
-                        3'b001: sum[7][65:34] <= (mul1);
-                        3'b010: sum[7][65:34] <= (mul1);
-                        3'b100: sum[7][65:34] <= (re_mul1);
-                        3'b101: sum[7][65:34] <= (re_mul1);
-                        3'b110: sum[7][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
-
-
-                    case (mul2[17:15])
-                        3'b011: sum[8][65:34] <= (mul1);
-                        3'b001: sum[8][65:34] <= (mul1);
-                        3'b010: sum[8][65:34] <= (mul1);
-                        3'b100: sum[8][65:34] <= (re_mul1);
-                        3'b101: sum[8][65:34] <= (re_mul1);
-                        3'b110: sum[8][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
-
-
-                    case (mul2[19:17])
-                        3'b011: sum[9][65:34] <= (mul1);
-                        3'b001: sum[9][65:34] <= (mul1);
-                        3'b010: sum[9][65:34] <= (mul1);
-                        3'b100: sum[9][65:34] <= (re_mul1);
-                        3'b101: sum[9][65:34] <= (re_mul1);
-                        3'b110: sum[9][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
-
-
-                    case (mul2[21:19])
-                        3'b011: sum[10][65:34] <= (mul1);
-                        3'b001: sum[10][65:34] <= (mul1);
-                        3'b010: sum[10][65:34] <= (mul1);
-                        3'b100: sum[10][65:34] <= (re_mul1);
-                        3'b101: sum[10][65:34] <= (re_mul1);
-                        3'b110: sum[10][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
-
-
-                    case (mul2[23:21])
-                        3'b011: sum[11][65:34] <= (mul1);
-                        3'b001: sum[11][65:34] <= (mul1);
-                        3'b010: sum[11][65:34] <= (mul1);
-                        3'b100: sum[11][65:34] <= (re_mul1);
-                        3'b101: sum[11][65:34] <= (re_mul1);
-                        3'b110: sum[11][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
-
-
-                    case (mul2[25:23])
-                        3'b011: sum[12][65:34] <= (mul1);
-                        3'b001: sum[12][65:34] <= (mul1);
-                        3'b010: sum[12][65:34] <= (mul1);
-                        3'b100: sum[12][65:34] <= (re_mul1);
-                        3'b101: sum[12][65:34] <= (re_mul1);
-                        3'b110: sum[12][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
-
-
-                    case (mul2[27:25])
-                        3'b011: sum[13][65:34] <= (mul1);
-                        3'b001: sum[13][65:34] <= (mul1);
-                        3'b010: sum[13][65:34] <= (mul1);
-                        3'b100: sum[13][65:34] <= (re_mul1);
-                        3'b101: sum[13][65:34] <= (re_mul1);
-                        3'b110: sum[13][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
-
-
-                    case (mul2[29:27])
-                        3'b011: sum[14][65:34] <= (mul1);
-                        3'b001: sum[14][65:34] <= (mul1);
-                        3'b010: sum[14][65:34] <= (mul1);
-                        3'b100: sum[14][65:34] <= (re_mul1);
-                        3'b101: sum[14][65:34] <= (re_mul1);
-                        3'b110: sum[14][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
-
-
-                    case (mul2[31:29])
-                        3'b011: sum[15][65:34] <= (mul1);
-                        3'b001: sum[15][65:34] <= (mul1);
-                        3'b010: sum[15][65:34] <= (mul1);
-                        3'b100: sum[15][65:34] <= (re_mul1);
-                        3'b101: sum[15][65:34] <= (re_mul1);
-                        3'b110: sum[15][65:34] <= (re_mul1);
-                        3'b000: ;
-                        3'b111: ;
-                    endcase
-
-                    state <= b;
-
-                end
-
-                b: begin
-                    if ({mul2[1:0], 1'b0} == 3'b011 || {mul2[1:0], 1'b0} == 3'b100) begin
-                        sum[0] = $signed(sum[0]) >>> 33;
-                        sum[0][65] <= 1'b0;
-                    end else begin
-                        sum[0] = $signed(sum[0]) >>> 34;
-                        sum[0][65] <= 1'b0;
-                    end
-
-                    if (mul2[3:1] == 3'b011 || mul2[3:1] == 3'b100) begin
-                        sum[1] = $signed(sum[1]) >>> 31;
-                        sum[1][65] <= 1'b0;
-                    end else begin
-                        sum[1] = $signed(sum[1]) >>> 32;
-                        sum[1][65] <= 1'b0;
-                    end
-
-                    if (mul2[5:3] == 3'b011 || mul2[5:3] == 3'b100) begin
-                        sum[2] = $signed(sum[2]) >>> 29;
-                        sum[2][65] <= 1'b0;
-                    end else begin
-                        sum[2] = $signed(sum[2]) >>> 30;
-                        sum[2][65] <= 1'b0;
-                    end
-
-                    // Code Block 1
-                    if (mul2[7:5] == 3'b011 || mul2[7:5] == 3'b100) begin
-                        sum[3] = $signed(sum[3]) >>> 27;
-                        sum[3][65] <= 1'b0;
-                    end else begin
-                        sum[3] = $signed(sum[3]) >>> 28;
-                        sum[3][65] <= 1'b0;
-                    end
-
-                    // Code Block 2
-                    if (mul2[9:7] == 3'b011 || mul2[9:7] == 3'b100) begin
-                        sum[4] = $signed(sum[4]) >>> 25;
-                        sum[4][65] <= 1'b0;
-                    end else begin
-                        sum[4] = $signed(sum[4]) >>> 26;
-                        sum[4][65] <= 1'b0;
-                    end
-
-                    // Code Block 3
-                    if (mul2[11:9] == 3'b011 || mul2[11:9] == 3'b100) begin
-                        sum[5] = $signed(sum[5]) >>> 23;
-                        sum[5][65] <= 1'b0;
-                    end else begin
-                        sum[5] = $signed(sum[5]) >>> 24;
-                        sum[5][65] <= 1'b0;
-                    end
-
-                    // Code Block 4
-                    if (mul2[13:11] == 3'b011 || mul2[13:11] == 3'b100) begin
-                        sum[6] = $signed(sum[6]) >>> 21;
-                        sum[6][65] <= 1'b0;
-                    end else begin
-                        sum[6] = $signed(sum[6]) >>> 22;
-                        sum[6][65] <= 1'b0;
-                    end
-
-                    // Code Block 5
-                    if (mul2[15:13] == 3'b011 || mul2[15:13] == 3'b100) begin
-                        sum[7] = $signed(sum[7]) >>> 19;
-                        sum[7][65] <= 1'b0;
-                    end else begin
-                        sum[7] = $signed(sum[7]) >>> 20;
-                        sum[7][65] <= 1'b0;
-                    end
-
-                    // Code Block 6
-                    if (mul2[17:15] == 3'b011 || mul2[17:15] == 3'b100) begin
-                        sum[8] = $signed(sum[8]) >>> 17;
-                        sum[8][65] <= 1'b0;
-                    end else begin
-                        sum[8] = $signed(sum[8]) >>> 18;
-                        sum[8][65] <= 1'b0;
-                    end
-
-                    // Code Block 7
-                    if (mul2[19:17] == 3'b011 || mul2[19:17] == 3'b100) begin
-                        sum[9] = $signed(sum[9]) >>> 15;
-                        sum[9][65] <= 1'b0;
-                    end else begin
-                        sum[9] = $signed(sum[9]) >>> 16;
-                        sum[9][65] <= 1'b0;
-                    end
-
-                    // Code Block 8
-                    if (mul2[21:19] == 3'b011 || mul2[21:19] == 3'b100) begin
-                        sum[10] = $signed(sum[10]) >>> 13;
-                        sum[10][65] <= 1'b0;
-                    end else begin
-                        sum[10] = $signed(sum[10]) >>> 14;
-                        sum[10][65] <= 1'b0;
-                    end
-
-                    // Code Block 9
-                    if (mul2[23:21] == 3'b011 || mul2[23:21] == 3'b100) begin
-                        sum[11] = $signed(sum[11]) >>> 11;
-                        sum[11][65] <= 1'b0;
-                    end else begin
-                        sum[11] = $signed(sum[11]) >>> 12;
-                        sum[11][65] <= 1'b0;
-                    end
-
-                    // Code Block 10
-                    if (mul2[25:23] == 3'b011 || mul2[25:23] == 3'b100) begin
-                        sum[12] = $signed(sum[12]) >>> 9;
-                        sum[12][65] <= 1'b0;
-                    end else begin
-                        sum[12] = $signed(sum[12]) >>> 10;
-                        sum[12][65] <= 1'b0;
-                    end
-
-                    // Code Block 11
-                    if (mul2[27:25] == 3'b011 || mul2[27:25] == 3'b100) begin
-                        sum[13] = $signed(sum[13]) >>> 7;
-                        sum[13][65] <= 1'b0;
-                    end else begin
-                        sum[13] = $signed(sum[13]) >>> 8;
-                        sum[13][65] <= 1'b0;
-                    end
-
-                    // Code Block 12
-                    if (mul2[29:27] == 3'b011 || mul2[29:27] == 3'b100) begin
-                        sum[14] = $signed(sum[14]) >>> 5;
-                        sum[14][65] <= 1'b0;
-                    end else begin
-                        sum[14] = $signed(sum[14]) >>> 6;
-                        sum[14][65] <= 1'b0;
-                    end
-
-                    // Code Block 13
-                    if (mul2[31:29] == 3'b011 || mul2[31:29] == 3'b100) begin
-                        sum[15] = $signed(sum[15]) >>> 3;
-                        sum[15][65] <= 1'b0;
-                    end else begin
-                        sum[15] = $signed(sum[15]) >>> 4;
-                        sum[15][65] <= 1'b0;
-                    end
-
-                    state <= c;
-                end
-
-                c: begin
-                    result = 0;
-                    for (i = 0; i < 16; i = i + 1) begin
-                        result = result + sum[i];
-                    end
-                    // if (result[65] == 1'b1) out = result;
-                    // $finish();
-                    state <= a;
-                end
-            endcase
-        end
-    end
-
-    assign re_mul1 = -mul1;
-
-endmodule
+// endmodule

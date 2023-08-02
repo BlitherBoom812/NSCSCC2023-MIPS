@@ -292,16 +292,16 @@ function [63:0] get_hilo_write_data(input [7:0] aluop, input [63:0] mul_data, in
     end
 endfunction
 
-// mul mul0(
-//     .clock(clk),
-//     .reset(rst),
-//     .start(mul_start),
-//     .flag_unsigned(mul_flag_unsigned),
-//     .operand1(rs_data_i),
-//     .operand2(rt_data_i),
-//     .result(mul_data),
-//     .done(mul_done)
-// );
+mul mul0(
+    .clock(clk),
+    .reset(rst),
+    .start(mul_start),
+    .flag_unsigned(mul_flag_unsigned),
+    .operand1(rs_data_i),
+    .operand2(rt_data_i),
+    .result(mul_data),
+    .done(mul_done)
+);
 
 div div0(
     .clock(clk),
