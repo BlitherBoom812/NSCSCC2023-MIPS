@@ -25,14 +25,18 @@ module mips_top (
 
     output flush_o
 );
-
-    wire [31:0] if_pc_if_id;
-    wire [31:0] if_exception_type_if_id;
-    wire [31:0] rom_inst_if_id;
-
-    wire [31:0] if_id_inst_id;
-    wire [31:0] if_id_pc_id;
-    wire [31:0] if_id_exception_type_id;
+    // if - > postif
+    wire [31:0] if_pc_postif;
+    wire [31:0] if_exception_type_postif;
+    // postif -> postif_id
+    wire [31:0] postif_pc_postif_id;
+    wire [31:0] postif_inst_postif_id;
+    wire [31:0] postif_exception_type_postif_id;
+    wire        postif_stall_request;
+    // postif_id -> id
+    wire [31:0] postif_id_pc_id;
+    wire [31:0] postif_id_inst_id;
+    wire [31:0] postif_id_exception_type_id;
 
     wire [31:0] regfile_rs_data_id, regfile_rt_data_id;
     wire [31:0] id_pc_id_ex;
@@ -135,8 +139,7 @@ module mips_top (
     wire [31:0] cp0_return_pc;
 
     // inst read
-    assign inst_sram_addr_o  = if_pc_if_id;
-    assign rom_inst_if_id    = inst_sram_rdata_i;
+    assign inst_sram_addr_o  = if_pc_postif;
     // data access
     assign data_sram_ren_o   = mem_ram_read_enable;
     assign data_sram_wen_o   = mem_ram_write_enable ? mem_ram_write_select : 4'b0000;
@@ -144,6 +147,9 @@ module mips_top (
     assign data_sram_wdata_o = mem_ram_write_data;
     assign ram_read_data     = data_sram_rdata_o;
     // stall
+    // 4 types of stall: data_stall, inst_stall(outside); exe_stall_request, id_stall_request(inside)
+    // new 4 types of stall: data_stall(outside); postif_stall_request, exe_stall_request, id_stall_request(inside)
+    // final new 4 types of stall: postif_stall_request, exe_stall_request, id_stall_request, mem_stall_request(inside)
     wire stall_all;
     assign stall_all       = data_stall_i || exe_stall_request || inst_stall_i;
     // flush
@@ -157,34 +163,62 @@ module mips_top (
     pc mips_pc (
         .reset_i        (reset_i),
         .clock_i        (clock_i),
-        .stall_i        ({data_stall_i, exe_stall_request, id_stall_request, inst_stall_i}),
+        .stall_i        ({data_stall_i, exe_stall_request, id_stall_request, postif_stall_request}),
         .exception_i    (is_exception),
         .exception_pc_i (cp0_return_pc),
         .branch_enable_i(id_branch_enable),
         .branch_addr_i  (id_branch_addr),
 
-        .pc_o            (if_pc_if_id),
-        .exception_type_o(if_exception_type_if_id)
+        .pc_o            (if_pc_postif),
+        .exception_type_o(if_exception_type_postif)
     );
 
-    if_id mips_if_id (
-        .reset_i            (reset_i),
-        .clock_i            (clock_i),
-        .if_pc_i            (if_pc_if_id),
-        .if_inst_i          (rom_inst_if_id),
-        .exception_i        (is_exception),
-        .stall_i            ({data_stall_i, exe_stall_request, id_stall_request, inst_stall_i}),
-        .if_exception_type_i(if_exception_type_if_id),
+    postif mips_postif (
+        .pc_i            (if_pc_postif),
+        .inst_i          (inst_sram_rdata_i),
+        .exception_type_i(if_exception_type_postif),
+        .inst_stall_i    (inst_stall_i),
 
-        .id_inst_o          (if_id_inst_id),
-        .id_pc_o            (if_id_pc_id),
-        .id_exception_type_o(if_id_exception_type_id)
+        .pc_o            (postif_pc_postif_id),
+        .inst_o          (postif_inst_postif_id),
+        .exception_type_o(postif_exception_type_postif_id),
+        .postif_stall_o  (postif_stall_request)
     );
+
+    postif_id mips_postif_id (
+        .reset_i(reset_i),
+        .clock_i(clock_i),
+
+        .postif_pc_i            (postif_pc_postif_id),
+        .postif_inst_i          (postif_inst_postif_id),
+        .postif_exception_type_i(postif_exception_type_postif_id),
+
+        .exception_i(is_exception),
+        .stall_i    ({data_stall_i, exe_stall_request, id_stall_request, postif_stall_request}),
+
+        .id_pc_o            (postif_id_pc_id),
+        .id_inst_o          (postif_id_inst_id),
+        .id_exception_type_o(postif_id_exception_type_id)
+    );
+
+    // if_id mips_if_id (
+    //     .reset_i            (reset_i),
+    //     .clock_i            (clock_i),
+    //     .if_pc_i            (if_pc_if_id),
+    //     .if_inst_i          (rom_inst_postif),
+    //     .exception_i        (is_exception),
+    //     .stall_i            ({data_stall_i, exe_stall_request, id_stall_request, inst_stall_i}),
+    //     .if_exception_type_i(if_exception_type_postif),
+
+    //     .id_inst_o          (postif_id_inst_id),
+    //     .id_pc_o            (postif_id_pc_id),
+    //     .id_exception_type_o(postif_id_exception_type_id)
+    // );
 
     id mips_id (
         .reset_i                           (reset_i),
-        .inst_i                            (if_id_inst_id),
-        .pc_i                              (if_id_pc_id),
+        .inst_i                            (postif_id_inst_id),
+        .pc_i                              (postif_id_pc_id),
         .rs_data_i                         (regfile_rs_data_id),
         .rt_data_i                         (regfile_rt_data_id),
         .exe_regfile_write_addr_i          (ex_regfile_write_addr_ex_mem),
@@ -196,7 +230,7 @@ module mips_top (
         .forward_mem_regfile_write_enable_i(mem_regfile_write_enable_mem_wb),
         .forward_mem_regfile_write_addr_i  (mem_regfile_write_addr_mem_wb),
         .forward_mem_regfile_write_data_i  (mem_regfile_write_data_mem_wb),
-        .exception_type_i                  (if_id_exception_type_id),
+        .exception_type_i                  (postif_id_exception_type_id),
 
         .pc_o                  (id_pc_id_ex),
         .inst_o                (id_inst_id_ex),
@@ -225,7 +259,7 @@ module mips_top (
         .clock_i                  (clock_i),
         .reset_i                  (reset_i),
         .exception_i              (is_exception),
-        .stall_i                  ({data_stall_i, exe_stall_request, id_stall_request, inst_stall_i}),
+        .stall_i                  ({data_stall_i, exe_stall_request, id_stall_request, postif_stall_request}),
         .id_pc_i                  (id_pc_id_ex),
         .id_rs_data_i             (id_rs_data_id_ex),
         .id_rt_data_i             (id_rt_data_id_ex),
@@ -353,7 +387,7 @@ module mips_top (
         .exe_cp0_write_data_i      (ex_cp0_write_data_ex_mem),
         .exe_mem_to_reg_i          (ex_mem_to_reg_ex_mem),
         .exception_i               (is_exception),
-        .stall_i                   ({data_stall_i, exe_stall_request, id_stall_request, inst_stall_i}),
+        .stall_i                   ({data_stall_i, exe_stall_request, id_stall_request, postif_stall_request}),
 
         .mem_pc_o                  (ex_mem_pc_mem),
         .mem_aluop_o               (ex_mem_aluop_mem),
@@ -435,7 +469,7 @@ module mips_top (
         .mem_cp0_write_addr_i      (mem_cp0_write_addr),
         .mem_cp0_write_data_i      (mem_cp0_write_data),
         .mem_regfile_write_data_i  (mem_regfile_write_data_mem_wb),
-        .stall_i                   ({data_stall_i, exe_stall_request, id_stall_request, inst_stall_i}),
+        .stall_i                   ({data_stall_i, exe_stall_request, id_stall_request, postif_stall_request}),
         .exception_i               (is_exception),
 
 
@@ -457,8 +491,8 @@ module mips_top (
         .regfile_write_enable_i(mem_wb_regfile_write_enable),
         .regfile_write_addr_i  (mem_wb_regfile_write_addr),
         .regfile_write_data_i  (mem_wb_regfile_write_data),
-        .rs_read_addr_i        (if_id_inst_id[25:21]),
-        .rt_read_addr_i        (if_id_inst_id[20:16]),
+        .rs_read_addr_i        (postif_id_inst_id[25:21]),
+        .rt_read_addr_i        (postif_id_inst_id[20:16]),
 
         .rs_data_o(regfile_rs_data_id),
         .rt_data_o(regfile_rt_data_id)

@@ -98,10 +98,6 @@ module mycpu_top
     output [31:0] debug_wb_rf_wdata 
 );
 
-wire [5 :0] int;
-
-assign int = ext_int;
-
 wire        time_int_out;
 wire        flush;
 
@@ -120,7 +116,7 @@ mips_top mips_core(
 .clock_i(aclk),
 .reset_i(aresetn),
 
-.interrupt_i({time_int_out || int[5],int[4:0]}),
+.interrupt_i({time_int_out || ext_int[5], ext_int[4:0]}),
 .time_int_out_o(time_int_out),
 
 .inst_sram_addr_o(inst_sram_addr),
