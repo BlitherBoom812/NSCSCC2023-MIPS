@@ -68,7 +68,7 @@ module id (
     assign pc_add8            = pc_i + 32'h8;
     assign imm16_o            = inst_i[15:0];
 
-    assign id_stall_request_o = (reset_i == 1'b0) ? 1'b0 : ((exe_mem_to_reg_i == 1'b1 && rs_read_enable == 1'b1 && (exe_regfile_write_addr_i == rs || exe_regfile_write_addr_i == rt)) ? 1'b1 : 1'b0);
+    assign id_stall_request_o = (reset_i == 1'b0) ? 1'b0 : ((exe_mem_to_reg_i == 1'b1 && ((exe_regfile_write_addr_i == rs && rs_read_enable == 1'b1) || (exe_regfile_write_addr_i == rt && rt_read_enable == 1'b1))) ? 1'b1 : 1'b0);
 
     assign exception_type_o   = {exception_type_i[31], ~instr_valid, exception_type_i[29], is_break, is_syscall, exception_type_i[26:1], is_eret};
 
