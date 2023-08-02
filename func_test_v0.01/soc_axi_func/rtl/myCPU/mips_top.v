@@ -3,8 +3,8 @@ module mips_top (
     input clock_i,
     input reset_i,
 
-    input  [ 5:0] interrupt_i,
-    output        time_int_out_o,
+    input  [5:0] interrupt_i,
+    output       time_int_out_o,
 
     output [31:0] inst_sram_addr_o,
     input  [31:0] inst_sram_rdata_i,
@@ -20,8 +20,8 @@ module mips_top (
     output [ 4:0] debug_wb_num_o,
     output [31:0] debug_wb_data_o,
 
-    input  inst_stall_i,
-    input  data_stall_i,
+    input inst_stall_i,
+    input data_stall_i,
 
     output flush_o
 );
@@ -136,16 +136,16 @@ module mips_top (
 
     // inst read
     assign inst_sram_addr_o  = if_pc_if_id;
-    assign rom_inst_if_id  = inst_sram_rdata_i;
+    assign rom_inst_if_id    = inst_sram_rdata_i;
     // data access
     assign data_sram_ren_o   = mem_ram_read_enable;
     assign data_sram_wen_o   = mem_ram_write_enable ? mem_ram_write_select : 4'b0000;
     assign data_sram_addr_o  = mem_ram_write_enable ? mem_ram_write_addr : mem_ram_read_addr;
     assign data_sram_wdata_o = mem_ram_write_data;
-    assign ram_read_data   = data_sram_rdata_o;
+    assign ram_read_data     = data_sram_rdata_o;
     // stall
     wire stall_all;
-    assign stall_all     = data_stall_i || exe_stall_request || inst_stall_i;
+    assign stall_all       = data_stall_i || exe_stall_request || inst_stall_i;
     // flush
     assign flush_o         = (reset_i == `RST_ENABLE) ? 1'b0 : is_exception;
     // debug

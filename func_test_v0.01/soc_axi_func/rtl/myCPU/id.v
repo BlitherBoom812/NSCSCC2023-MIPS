@@ -75,8 +75,8 @@ module id (
     function [31:0] forward_rx_data(input reset_i, input rx_read_enable, input [4:0] rx, input [31:0] rx_data_i, input [4:0] forward_ex_regfile_write_addr_i, input forward_ex_regfile_write_enable_i, input [31:0] forward_ex_regfile_write_data_i, input [4:0] forward_mem_regfile_write_addr_i,
                                     input forward_mem_regfile_write_enable_i, input [31:0] forward_mem_regfile_write_data_i);
         if (reset_i === 1'b0) forward_rx_data = 32'h0;
-        else if (rx_read_enable === 1'b1 && forward_ex_regfile_write_addr_i === rx && forward_ex_regfile_write_enable_i === 1'b1) forward_rx_data = forward_ex_regfile_write_data_i;
-        else if (rx_read_enable === 1'b1 && forward_mem_regfile_write_addr_i === rx && forward_mem_regfile_write_enable_i === 1'b1) forward_rx_data = forward_mem_regfile_write_data_i;
+        else if (rx_read_enable === 1'b1 && forward_ex_regfile_write_addr_i !== 5'b00000 && forward_ex_regfile_write_addr_i === rx && forward_ex_regfile_write_enable_i === 1'b1) forward_rx_data = forward_ex_regfile_write_data_i;
+        else if (rx_read_enable === 1'b1 && forward_mem_regfile_write_addr_i !== 5'b00000 && forward_mem_regfile_write_addr_i === rx && forward_mem_regfile_write_enable_i === 1'b1) forward_rx_data = forward_mem_regfile_write_data_i;
         else if (rx_read_enable === 1'b1) forward_rx_data = rx_data_i;
         else forward_rx_data = 32'h0;
     endfunction
