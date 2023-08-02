@@ -72,27 +72,17 @@ module id (
 
     assign exception_type_o   = {exception_type_i[31], ~instr_valid, exception_type_i[29], is_break, is_syscall, exception_type_i[26:1], is_eret};
 
-    function [31:0] forward_rs_data(input reset_i, input rs_read_enable, input [4:0] rs, input [31:0] rs_data_i, input [4:0] forward_ex_regfile_write_addr_i, input forward_ex_regfile_write_enable_i, input [31:0] forward_ex_regfile_write_data_i, input [4:0] forward_mem_regfile_write_addr_i,
-                             input forward_mem_regfile_write_enable_i, input [31:0] forward_mem_regfile_write_data_i);
-        if (reset_i === 1'b0) forward_rs_data = 32'h0;
-        else if (rs_read_enable === 1'b1 && forward_ex_regfile_write_addr_i === rs && forward_ex_regfile_write_enable_i === 1'b1) forward_rs_data = forward_ex_regfile_write_data_i;
-        else if (rs_read_enable === 1'b1 && forward_mem_regfile_write_addr_i === rs && forward_mem_regfile_write_enable_i === 1'b1) forward_rs_data = forward_mem_regfile_write_data_i;
-        else if (rs_read_enable === 1'b1) forward_rs_data = rs_data_i;
-        else forward_rs_data = 32'h0;
+    function [31:0] forward_rx_data(input reset_i, input rx_read_enable, input [4:0] rx, input [31:0] rx_data_i, input [4:0] forward_ex_regfile_write_addr_i, input forward_ex_regfile_write_enable_i, input [31:0] forward_ex_regfile_write_data_i, input [4:0] forward_mem_regfile_write_addr_i,
+                                    input forward_mem_regfile_write_enable_i, input [31:0] forward_mem_regfile_write_data_i);
+        if (reset_i === 1'b0) forward_rx_data = 32'h0;
+        else if (rx_read_enable === 1'b1 && forward_ex_regfile_write_addr_i === rx && forward_ex_regfile_write_enable_i === 1'b1) forward_rx_data = forward_ex_regfile_write_data_i;
+        else if (rx_read_enable === 1'b1 && forward_mem_regfile_write_addr_i === rx && forward_mem_regfile_write_enable_i === 1'b1) forward_rx_data = forward_mem_regfile_write_data_i;
+        else if (rx_read_enable === 1'b1) forward_rx_data = rx_data_i;
+        else forward_rx_data = 32'h0;
     endfunction
 
-    assign rs_data_o = forward_rs_data(reset_i, rs_read_enable, rs, rs_data_i, forward_ex_regfile_write_addr_i, forward_ex_regfile_write_enable_i, forward_ex_regfile_write_data_i, forward_mem_regfile_write_addr_i, forward_mem_regfile_write_enable_i, forward_mem_regfile_write_data_i);
-
-    function [31:0] forward_rt_data(input reset_i, input rt_read_enable, input [4:0] rt, input [31:0] rt_data_i, input [4:0] forward_ex_regfile_write_addr_i, input forward_ex_regfile_write_enable_i, input [31:0] forward_ex_regfile_write_data_i, input [4:0] forward_mem_regfile_write_addr_i,
-                             input forward_mem_regfile_write_enable_i, input [31:0] forward_mem_regfile_write_data_i);
-        if (reset_i === 1'b0) forward_rt_data = 32'h0;
-        else if (rt_read_enable === 1'b1 && forward_ex_regfile_write_addr_i === rt && forward_ex_regfile_write_enable_i === 1'b1) forward_rt_data = forward_ex_regfile_write_data_i;
-        else if (rt_read_enable === 1'b1 && forward_mem_regfile_write_addr_i === rt && forward_mem_regfile_write_enable_i === 1'b1) forward_rt_data = forward_mem_regfile_write_data_i;
-        else if (rt_read_enable === 1'b1) forward_rt_data = rt_data_i;
-        else forward_rt_data = 32'h0;
-    endfunction
-
-    assign rt_data_o = forward_rt_data(reset_i, rt_read_enable, rt, rt_data_i, forward_ex_regfile_write_addr_i, forward_ex_regfile_write_enable_i, forward_ex_regfile_write_data_i, forward_mem_regfile_write_addr_i, forward_mem_regfile_write_enable_i, forward_mem_regfile_write_data_i);
+    assign rs_data_o = forward_rx_data(reset_i, rs_read_enable, rs, rs_data_i, forward_ex_regfile_write_addr_i, forward_ex_regfile_write_enable_i, forward_ex_regfile_write_data_i, forward_mem_regfile_write_addr_i, forward_mem_regfile_write_enable_i, forward_mem_regfile_write_data_i);
+    assign rt_data_o = forward_rx_data(reset_i, rt_read_enable, rt, rt_data_i, forward_ex_regfile_write_addr_i, forward_ex_regfile_write_enable_i, forward_ex_regfile_write_data_i, forward_mem_regfile_write_addr_i, forward_mem_regfile_write_enable_i, forward_mem_regfile_write_data_i);
 
     always @(*) begin
         if (reset_i == 1'b0) begin

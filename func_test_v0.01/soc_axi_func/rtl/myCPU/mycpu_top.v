@@ -117,28 +117,30 @@ wire [31:0] data_sram_rdata;
 wire        data_stall;
 
 mips_top mips_core(
-.clk(aclk),
-.rst(aresetn),
-.flush(flush),
-.interrupt({time_int_out || int[5],int[4:0]}),
-.time_int_out(time_int_out),
+.clock_i(aclk),
+.reset_i(aresetn),
 
-.inst_sram_addr(inst_sram_addr),
-.inst_sram_rdata(inst_sram_rdata),
+.interrupt_i({time_int_out || int[5],int[4:0]}),
+.time_int_out_o(time_int_out),
 
-.data_sram_ren(data_sram_ren),
-.data_sram_wen(data_sram_wen),
-.data_sram_addr(data_sram_addr),
-.data_sram_wdata(data_sram_wdata),
-.data_sram_rdata(data_sram_rdata),
+.inst_sram_addr_o(inst_sram_addr),
+.inst_sram_rdata_i(inst_sram_rdata),
 
-.debug_wb_pc(debug_wb_pc),
-.debug_wb_wen(debug_wb_rf_wen),
-.debug_wb_num(debug_wb_rf_wnum),
-.debug_wb_data(debug_wb_rf_wdata),
+.data_sram_ren_o(data_sram_ren),
+.data_sram_wen_o(data_sram_wen),
+.data_sram_addr_o(data_sram_addr),
+.data_sram_wdata_o(data_sram_wdata),
+.data_sram_rdata_o(data_sram_rdata),
 
-.inst_stall(inst_stall),
-.data_stall(data_stall)
+.debug_wb_pc_o(debug_wb_pc),
+.debug_wb_wen_o(debug_wb_rf_wen),
+.debug_wb_num_o(debug_wb_rf_wnum),
+.debug_wb_data_o(debug_wb_rf_wdata),
+
+.inst_stall_i(inst_stall),
+.data_stall_i(data_stall),
+
+.flush_o(flush)
 );
 
 wire [31:0] inst_addr;
@@ -164,40 +166,40 @@ wire is_flush;
 // mips_core 通过 sram_interface 以类sram的形式访问内存。sram_interface输出为axi接口，接入cache模块，cache模块的输出为axi接口
 sram_interface sram_interface_module
 (
-.clk(aclk),
-.rst(aresetn),
-.flush(flush),
+.clock_i(aclk),
+.reset_i(aresetn),
+.flush_i(flush),
 
-.inst_cpu_addr(inst_sram_addr),
-.inst_cpu_rdata(inst_sram_rdata),
-.inst_cpu_stall(inst_stall),
+.inst_cpu_addr_i(inst_sram_addr),
+.inst_cpu_rdata_o(inst_sram_rdata),
+.inst_cpu_stall_o(inst_stall),
     
-.data_cpu_addr(data_sram_addr),
-.data_cpu_ren(data_sram_ren),
-.data_cpu_wen(data_sram_wen),
-.data_cpu_wdata(data_sram_wdata),
-.data_cpu_rdata(data_sram_rdata),
-.data_cpu_stall(data_stall),
+.data_cpu_addr_i(data_sram_addr),
+.data_cpu_ren_i(data_sram_ren),
+.data_cpu_wen_i(data_sram_wen),
+.data_cpu_wdata_i(data_sram_wdata),
+.data_cpu_rdata_o(data_sram_rdata),
+.data_cpu_stall_o(data_stall),
 
-.inst_cache_ok(inst_valid),
-.inst_cache_rdata(inst_rd),
-.inst_cache_addr(inst_addr),
-.inst_cache_ren(inst_ren),
+.inst_cache_ok_i(inst_valid),
+.inst_cache_rdata_i(inst_rd),
+.inst_cache_addr_o(inst_addr),
+.inst_cache_ren_o(inst_ren),
 
-.data_cache_read_ok(data_valid_r),
-.data_cache_write_ok(data_valid_w),
-.data_cache_rdata(data_rd),
-.data_cache_addr(data_addr),
-.data_cache_wen(data_wen),
-.data_cache_ren(data_ren),
-.data_cache_wdata(data_wd),
+.data_cache_read_ok_i(data_valid_r),
+.data_cache_write_ok_i(data_valid_w),
+.data_cache_rdata_i(data_rd),
+.data_cache_addr_o(data_addr),
+.data_cache_wen_o(data_wen),
+.data_cache_ren_o(data_ren),
+.data_cache_wdata_o(data_wd),
 
-.inst_cache_ena(inst_cache_ena),
-.data_cache_ena(data_cache_ena),
-.is_inst_read(is_inst_read),
-.is_data_read(is_data_read),
+.inst_cache_ena_o(inst_cache_ena),
+.data_cache_ena_o(data_cache_ena),
+.is_inst_read_o(is_inst_read),
+.is_data_read_o(is_data_read),
 
-.is_flush(is_flush)
+.is_flush_o(is_flush)
 );
 
 wire [31:0] inst_cache_bridge_araddr;

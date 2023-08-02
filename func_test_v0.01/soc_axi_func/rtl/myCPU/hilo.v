@@ -1,7 +1,7 @@
 `include "defines.vh"
 module hilo(
-    input                    clk,
-    input                    rst,
+    input                    clock_i,
+    input                    reset_i,
     input                    hi_write_enable_i,
     input    [31:0]          hi_write_data_i,
     input                    lo_write_enable_i,
@@ -15,8 +15,8 @@ reg [31:0] lo;
 
 // addr = 1 indicates select high
 assign hilo_read_data_o = (hilo_read_addr_i == 1'b1) ? (hi_write_enable_i ? hi_write_data_i : hi ): (lo_write_enable_i ? lo_write_data_i : lo);
-always @ (posedge clk) begin
-    if(rst == 1'b0) begin
+always @ (posedge clock_i) begin
+    if(reset_i == 1'b0) begin
         hi <= 32'b0;
         lo <= 32'b0;
     end 
