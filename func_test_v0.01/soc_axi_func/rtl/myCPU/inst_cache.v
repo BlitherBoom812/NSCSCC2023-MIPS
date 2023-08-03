@@ -87,10 +87,11 @@ reg [31:0] data_at_write_back = 32'h0000_0000;
 // pipeline
 wire [31:0] addr_req_idle;
 wire ren_idle;
+wire cached_idle;
 
 wire [31:0] addr_req_compTag;
 wire ren_compTag;
-
+wire cached_compTag;
 
 wire [1:0] hit_compTag;
 wire [31:0] s_rdata_compTag;
@@ -135,27 +136,32 @@ endgenerate
 Idle cache_idle(
     .s_araddr_i(s_araddr),
     .ren_i(s_arvalid),
+    .cached_i(cached),
 
     .addr_req_o(addr_req_idle),
-    .ren_o(ren_idle)
+    .ren_o(ren_idle),
+    .cached_o(cached_idle)
 );
 
 Idle_CompTag cache_idle_compTag(
     .clock_i(clk),
     .reset_i(rst),
     .flush_i(flush),
-    .ren_idle_i(ren_idle),
-    .addr_req_idle_i(addr_req_idle),
     .stall_i({stall_compTag, stall_mem}), // stall at normal stage or after write back
+    .addr_req_idle_i(addr_req_idle),
+    .ren_idle_i(ren_idle),
+    .cached_idle_i(cached_idle),
 
     .ren_compTag_o(ren_compTag),
-    .addr_req_compTag_o(addr_req_compTag)
+    .addr_req_compTag_o(addr_req_compTag),
+    .cached_compTag_o(cached_compTag)
 );
 
 CompTag cache_compTag(
     .data_data_i(data_rdata[~hit[0]][addr_req_compTag[4:2]]),
     .hit_i(hit),
     .ren_i(ren_compTag),
+    .cached_i(cached_compTag),
     .handle_miss_done_i((current_state === WRITE_BACK) ? 1'b1 : 1'b0), // if WRITE_BACK, then handle miss done
 
     .s_rdata_o(s_rdata_compTag),
@@ -332,12 +338,15 @@ endmodule
 module Idle(
     input [31:0] s_araddr_i,
     input ren_i,
+    input cached_i,
 
     output [31:0] addr_req_o,
-    output wire ren_o
+    output wire ren_o,
+    output wire cached_o
 );
     assign addr_req_o = (ren_i) ? s_araddr_i : 32'h0000_0000;
     assign ren_o = ren_i;
+    assign cached_o = cached_i;
 endmodule
 // determine hit or not & get data from memory
 // if failed go to READ_MEM
@@ -345,6 +354,7 @@ module CompTag(
     input [31:0] data_data_i,
     input [1:0] hit_i,
     input ren_i,
+    input cached_i,
     input handle_miss_done_i,
 
     output [31:0] s_rdata_o,
@@ -355,8 +365,13 @@ module CompTag(
     genvar i;
     generate
         assign s_rdata_o = data_data_i;
-        assign s_rvalid_o = (ren_i === 1'b1) ? |hit_i : 1'b0;
-        assign stall_compTag_o = (ren_i === 1'b1) ? (~((|hit_i) | handle_miss_done_i)) : 1'b0;
+        assign s_rvalid_o = 
+            ((cached_i === 1'b1) && (ren_i === 1'b1)) ? |hit_i : 1'b0;
+        assign stall_compTag_o = 
+            (cached_i === 1'b1) ?
+                (ren_i & (~((|hit_i) | handle_miss_done_i)))
+            :
+                (ren_i & (~handle_miss_done_i));
     endgenerate
 
 endmodule
@@ -365,12 +380,14 @@ module Idle_CompTag(
     input clock_i,
     input reset_i,
     input flush_i,
+    input [1:0] stall_i,
     input [31:0] addr_req_idle_i,
     input ren_idle_i,
-    input [1:0] stall_i,
+    input cached_idle_i,
 
     output reg [31:0] addr_req_compTag_o,
-    output reg ren_compTag_o
+    output reg ren_compTag_o,
+    output reg cached_compTag_o
 );
     always @(posedge clock_i) begin
         if (reset_i == `RST_ENABLE) begin
@@ -379,9 +396,11 @@ module Idle_CompTag(
         end else if ((|stall_i === 1'b1) || (flush_i)) begin
             addr_req_compTag_o <= addr_req_compTag_o;
             ren_compTag_o <= ren_compTag_o;
+            cached_compTag_o <= cached_compTag_o;
         end else begin
             addr_req_compTag_o <= addr_req_idle_i;
             ren_compTag_o <= ren_idle_i;
+            cached_compTag_o <= cached_idle_i;
         end
     end
 endmodule
