@@ -1,7 +1,7 @@
 // 将inst_cache和data_cache的读端口合并为一个axi接口
 `include "cache_config.vh"
 
-module axi_cache_merge (
+module axi_cache_interface (
     input         inst_cache_ena_i,
     input         data_cache_ena_i,
     input         inst_ren_i,
@@ -22,7 +22,6 @@ module axi_cache_merge (
     output        data_rvalid_o,
     input         data_rready_i,
 
-
     //ar
     output [ 3:0] arid_o,
     output [31:0] araddr_o,
@@ -40,7 +39,52 @@ module axi_cache_merge (
     input  [ 1:0] rresp_i,
     input         rlast_i,
     input         rvalid_i,
-    output        rready_o
+    output        rready_o,
+
+    // aw
+    input  [ 3:0] data_awid_i,
+    input  [ 7:0] data_awlen_i,
+    input  [ 2:0] data_awsize_i,
+    input  [ 1:0] data_awburst_i,
+    input  [ 1:0] data_awlock_i,
+    input  [ 3:0] data_awcache_i,
+    input  [ 2:0] data_awprot_i,
+    input  [31:0] data_awaddr_i,
+    input         data_awvalid_i,
+    output        data_awready_o,
+
+    output [ 3:0] awid_o,
+    output [ 7:0] awlen_o,
+    output [ 2:0] awsize_o,
+    output [ 1:0] awburst_o,
+    output [ 1:0] awlock_o,
+    output [ 3:0] awcache_o,
+    output [ 2:0] awprot_o,
+    output [31:0] awaddr_o,
+    output        awvalid_o,
+    input         awready_i,
+
+    // w
+    input  [ 3:0] data_wid_i,
+    input  [31:0] data_wdata_i,
+    input         data_wlast_i,
+    input  [ 3:0] data_wstrb_i,
+    input         data_wvalid_i,
+    output        data_wready_o,
+
+    output [ 3:0] wid_o,
+    output [31:0] wdata_o,
+    output        wlast_o,
+    output [ 3:0] wstrb_o,
+    output        wvalid_o,
+    input         wready_i,
+
+    // b
+    output  data_bvalid_o,
+    input data_bready_i,
+
+    input  bvalid_i,
+    output bready_o
 );
 
     assign arvalid_o      = data_arvalid_i | inst_arvalid_i;
@@ -68,4 +112,24 @@ module axi_cache_merge (
     assign inst_rvalid_o  = inst_ren_i ? rvalid_i : 1'b0;
     assign data_rvalid_o  = data_ren_i ? rvalid_i : 1'b0;
 
+    assign awid_o = data_awid_i;
+    assign awlen_o = data_awlen_i;
+    assign awsize_o = data_awsize_i;
+    assign awburst_o = data_awburst_i;
+    assign awlock_o = data_awlock_i;
+    assign awcache_o = data_awcache_i;
+    assign awprot_o = data_awprot_i;
+    assign awaddr_o = data_awaddr_i;
+    assign awvalid_o = data_awvalid_i;
+    assign data_awready_o = awready_i;
+
+    assign wdata_o = data_wdata_i;
+    assign wstrb_o = data_wstrb_i;
+    assign wlast_o = data_wlast_i;
+    assign wvalid_o = data_wvalid_i;
+    assign data_wready_o = awready_i;
+
+    assign data_bvalid_o = bvalid_i;
+    assign bready_o = data_bready_i;
+    
 endmodule

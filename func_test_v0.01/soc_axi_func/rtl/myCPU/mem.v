@@ -3,6 +3,7 @@ module mem (
     input        reset_i,
     input [31:0] pc_i,
     input [ 7:0] aluop_i,
+    input        data_stall_i,
     input        now_in_delayslot_i,
     input [31:0] exception_type_i,
     input        regfile_write_enable_i,
@@ -22,26 +23,27 @@ module mem (
     input [31:0] ram_read_addr_i,
     input [31:0] ram_read_data_i,
 
-    output reg [31:0] store_pc_o,
-    output reg [31:0] access_mem_addr_o,
-    output reg        now_in_delayslot_o,
-    output reg [31:0] exception_type_o,
-    output            regfile_write_enable_o,
-    output     [ 4:0] regfile_write_addr_o,
-    output            hi_write_enable_o,
-    output     [31:0] hi_write_data_o,
-    output            lo_write_enable_o,
-    output     [31:0] lo_write_data_o,
-    output            cp0_write_enable_o,
-    output     [ 4:0] cp0_write_addr_o,
-    output     [31:0] cp0_write_data_o,
-    output     [31:0] regfile_write_data_o,
-    output reg [ 3:0] ram_write_select_o,   // byte select, width = 4bit regexe_for 4 byte,bit 1 is write, bit 0 is no write
-    output reg        ram_write_enable_o,
-    output reg [31:0] ram_write_addr_o,
-    output reg [31:0] ram_write_data_o,
-    output reg [31:0] ram_read_addr_o,
-    output reg        ram_read_enable_o
+    output wire        mem_stall_request_o,
+    output reg  [31:0] store_pc_o,
+    output reg  [31:0] access_mem_addr_o,
+    output reg         now_in_delayslot_o,
+    output reg  [31:0] exception_type_o,
+    output             regfile_write_enable_o,
+    output      [ 4:0] regfile_write_addr_o,
+    output             hi_write_enable_o,
+    output      [31:0] hi_write_data_o,
+    output             lo_write_enable_o,
+    output      [31:0] lo_write_data_o,
+    output             cp0_write_enable_o,
+    output      [ 4:0] cp0_write_addr_o,
+    output      [31:0] cp0_write_data_o,
+    output      [31:0] regfile_write_data_o,
+    output reg  [ 3:0] ram_write_select_o,
+    output reg         ram_write_enable_o,
+    output reg  [31:0] ram_write_addr_o,
+    output reg  [31:0] ram_write_data_o,
+    output reg  [31:0] ram_read_addr_o,
+    output reg         ram_read_enable_o
 );
 
     reg is_read_bad_addr, is_write_bad_addr;
@@ -165,6 +167,8 @@ module mem (
             endcase
         end
     end
+
+    assign mem_stall_request_o = data_stall_i;
 
     always @(*) begin
         if (reset_i == 1'b0) begin

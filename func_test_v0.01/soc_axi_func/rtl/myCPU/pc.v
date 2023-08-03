@@ -10,14 +10,20 @@ module pc (
     input [31:0] branch_addr_i,
 
     output     [31:0] exception_type_o,
-    output reg [31:0] pc_o
+    output reg [31:0] pc_o,
+    output reg inst_ren_o,
+    output reg inst_cache_ena_o
 );
 
     wire [31:0] pc_next;
 
     always @(posedge clock_i) begin
-        if (reset_i == 1'b0) pc_o <= 32'hbfc0_0000;
-        else pc_o <= pc_next;
+        if (reset_i === `RST_ENABLE) pc_o <= 32'hbfc0_0000;
+        else begin
+            pc_o <= pc_next;
+            inst_ren_o <= (exception_i === 1'b0 && stall_i === 4'b0000) ? 1'b1: 1'b0;
+            inst_cache_ena_o <= (pc_next[31:29] == 3'b101) ? 1'b0 : 1'b1;
+        end
     end
 
     assign pc_next = 

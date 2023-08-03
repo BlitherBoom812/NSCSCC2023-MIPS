@@ -85,7 +85,7 @@ always @ (posedge clock_i) begin
         ex_exception_type_o <= 6'h0;
     end 
     else if (exe_stall == 1'b1 || data_stall == 1'b1); 
-    else if (inst_stall == 1'b1 || id_stall == 1'b1) begin
+    else if (id_stall == 1'b1) begin
         ex_pc_o <= 32'b0;
         ex_rs_data_o <= 32'b0;
         ex_rt_data_o <= 32'b0;

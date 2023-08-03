@@ -313,7 +313,7 @@ endgenerate
 // if hit, the cpu get data at IDLE_AND_COMP_TAG state
 // else, the cpu get data at WRITE_BACK state
 assign s_rvalid =
-    ((current_state === IDLE_AND_COMP_TAG) && (addr_req_compTag === s_araddr)) ?
+    ((current_state === IDLE_AND_COMP_TAG)) ?
         s_rvalid_compTag
     :
         ((current_state === WRITE_BACK) ?
