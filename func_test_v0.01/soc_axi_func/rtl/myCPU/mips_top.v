@@ -152,7 +152,7 @@ module mips_top (
     wire [31:0] cp0_return_pc;
 
     // inst read
-    assign inst_sram_addr_o  = if_pc_postif;
+    assign inst_sram_addr_o  = if_pc_if_postif;
     // data access
     assign data_sram_ren_o   = mem_ram_read_enable;
     assign data_sram_wen_o   = mem_ram_write_enable ? mem_ram_write_select : 4'b0000;
@@ -192,7 +192,7 @@ module mips_top (
         .clock_i            (clock_i),
         .reset_i            (reset_i),
 
-        .if_pc_i            (if_pc_postif),
+        .if_pc_i            (if_pc_if_postif),
         .if_exception_type_i(if_exception_type_postif),
         .if_inst_ren_i(inst_sram_ren_o),
 
@@ -454,7 +454,7 @@ module mips_top (
     mem mips_mem (
         .pc_i                  (ex_mem_pc_mem),
         .aluop_i               (ex_mem_aluop_mem),
-        .data_stall_i          (mem_stall_request),
+        .data_stall_i          (data_stall_i),
         .now_in_delayslot_i    (ex_mem_now_in_delayslot_mem),
         .exception_type_i      (ex_mem_exception_type_mem),
         .regfile_write_enable_i(ex_mem_regfile_write_enable_mem),

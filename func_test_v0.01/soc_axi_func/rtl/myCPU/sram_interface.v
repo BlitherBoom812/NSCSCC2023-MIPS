@@ -66,12 +66,10 @@ module sram_interface (
         begin
             case (state)
                 state_idle: begin
-                    data_cpu_stall = 1'b1;
+                    data_cpu_stall = 1'b0;
                     data_cpu_rdata = 32'b0;
                 end
                 state_req: begin
-                    data_cpu_stall = 1'b1;
-                    data_cpu_rdata = 32'b0;
                     if (flush) begin
                         data_cpu_stall = 1'b0;
                         data_cpu_rdata = 32'b0;
@@ -79,7 +77,7 @@ module sram_interface (
                         data_cpu_stall = 1'b0;
                         data_cpu_rdata = dcache_rdata_buf;
                     end else begin
-                        data_cpu_stall = 1'b1;
+                        data_cpu_stall = 1'b0;
                         data_cpu_rdata = 32'b0;
                     end
                 end

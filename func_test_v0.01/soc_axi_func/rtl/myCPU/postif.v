@@ -25,7 +25,7 @@ module postif (
     assign pc_o             = pc_i;
     assign inst_o           = inst_i;
     assign exception_type_o = exception_type_i;
-    assign postif_stall_o   = ~inst_ren_i | inst_ok_i;  // if exist request and no reply, then stall
+    assign postif_stall_o   = inst_ren_i & ~inst_ok_i;  // if exist request and no reply, then stall
     assign inst_ren_o       = inst_ren_i;
     assign inst_ok_o        = inst_ok_i;
     assign inst_valid_o     = inst_valid_i;
