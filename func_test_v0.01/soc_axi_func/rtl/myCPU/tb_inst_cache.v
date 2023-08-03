@@ -2,8 +2,9 @@
 `timescale 1ns / 1ps
 `include "defines.vh"
 
-`define LINE_OFFSET_WIDTH 5 // For inst_cache is 6 (2^6 Bytes = 64 Bytes = 16 words per line); For my_ICache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
-`define SEND_NUM 8 // For inst_cache is 16; For my_ICache, is 8
+`define LINE_OFFSET_WIDTH 5 // For my_ICache, is 5 (2^5 Bytes = 32 Bytes = 8 words per line)
+`define SEND_NUM 8 // word num
+
 module tb_inst_cache ();
 
     // top parameters
@@ -215,11 +216,11 @@ module tb_inst_cache ();
                         if (m_arvalid == 1'b0) begin
                             m_arready <= 1'b0;
                             m_rdata   <= {m_araddr_reg[31:`LINE_OFFSET_WIDTH], send_count << 2};
-                            if (send_count == SEND_NUM) begin
+                            if (send_count == SEND_NUM - 1) begin
                                 m_rlast    <= 1'b1;
                                 m_rvalid   <= 1'b1;
                                 send_count <= send_count + 1;
-                            end else if (send_count == SEND_NUM + 1) begin
+                            end else if (send_count == SEND_NUM) begin
                                 m_rlast    <= 1'b0;
                                 m_rvalid   <= 1'b0;
                                 send_count <= 0;
@@ -254,5 +255,4 @@ module tb_inst_cache ();
             endcase
         end
     end
-
 endmodule
