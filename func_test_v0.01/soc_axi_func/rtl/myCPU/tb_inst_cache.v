@@ -102,9 +102,9 @@ module tb_inst_cache ();
                 0: s_araddr <= 32'hf000_0000;   // miss
                 1: s_araddr <= 32'hf100_0004;   // miss
                 2: s_araddr <= 32'hf100_0008;   // hit
-                3: s_araddr <= 32'hf200_000C;   // miss
-                4: s_araddr <= 32'hf100_0000;   // hit
-                5: s_araddr <= 32'hf300_0004;   // miss
+                3: s_araddr <= 32'h0200_000C;   // miss
+                4: s_araddr <= 32'h0100_0000;   // hit
+                5: s_araddr <= 32'hffff_ffff;   // miss
                 6: s_araddr <= 32'hf100_0000;   // hit
                 7: s_araddr <= 32'hf300_0004;   // hit
                 8: s_araddr <= 32'hf100_0000;   // hit
