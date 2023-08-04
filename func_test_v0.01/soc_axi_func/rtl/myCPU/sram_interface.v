@@ -129,24 +129,28 @@ module sram_interface (
                 end
                 state_req: begin
                     if (data_cpu_ren_i == 1'b1) begin
-                        data_cache_ren_o <= 1'b1;
-                        data_cache_wen_o <= 4'b0000;
-                        is_inst_read_o   <= 1'b0;
-                        is_data_read_o   <= 1'b1;
+                        if ((is_inst_read_o !== 1'b1) || (inst_cache_ok_i === 1'b1)) begin
+                            data_cache_ren_o <= 1'b1;
+                            data_cache_wen_o <= 4'b0000;
+                            is_inst_read_o   <= 1'b0;
+                            is_data_read_o   <= 1'b1;
 
-                        data_cache_ena_o <= (data_cpu_addr_i[31:29] == 3'b101) ? 1'b0 : 1'b1;
-                        // inst_cache_ena_o <= (inst_cpu_addr_i[31:29] == 3'b101) ? 1'b0 : 1'b1;
-                        state            <= state_wait_data_read;
+                            data_cache_ena_o <= (data_cpu_addr_i[31:29] == 3'b101) ? 1'b0 : 1'b1;
+                            // inst_cache_ena_o <= (inst_cpu_addr_i[31:29] == 3'b101) ? 1'b0 : 1'b1;
+                            state            <= state_wait_data_read;
+                        end
                     end else if (data_cpu_wen_i != 4'b0000) begin
-                        data_cache_wen_o   <= data_cpu_wen_i;
-                        data_cache_ren_o   <= 1'b0;
-                        is_inst_read_o     <= 1'b0;
-                        is_data_read_o     <= 1'b1;
+                        if ((is_inst_read_o !== 1'b1) || (inst_cache_ok_i === 1'b1)) begin
+                            data_cache_wen_o   <= data_cpu_wen_i;
+                            data_cache_ren_o   <= 1'b0;
+                            is_inst_read_o     <= 1'b0;
+                            is_data_read_o     <= 1'b1;
 
-                        // inst_cache_ena_o   <= (inst_cpu_addr_i[31:29] == 3'b101) ? 1'b0 : 1'b1;
-                        data_cache_ena_o   <= (data_cpu_addr_i[31:29] == 3'b101) ? 1'b0 : 1'b1;
-                        data_cache_wdata_o <= data_cpu_wdata_i;
-                        state              <= state_wait_data_write;
+                            // inst_cache_ena_o   <= (inst_cpu_addr_i[31:29] == 3'b101) ? 1'b0 : 1'b1;
+                            data_cache_ena_o   <= (data_cpu_addr_i[31:29] == 3'b101) ? 1'b0 : 1'b1;
+                            data_cache_wdata_o <= data_cpu_wdata_i;
+                            state              <= state_wait_data_write;
+                        end
                     end else begin
                         data_cache_wen_o <= 4'b0000;
                         data_cache_ren_o <= 1'b0;

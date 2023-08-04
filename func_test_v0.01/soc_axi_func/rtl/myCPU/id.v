@@ -562,7 +562,7 @@ module id (
             if (inst_i[31:21] == 11'b00000000000) begin
                 if (funct == `FUNCT_SLL) begin
                     aluop_o                <= `ALUOP_SLL;
-                    regfile_write_enable_o <= 1'b1;
+                    regfile_write_enable_o <= (rd == 5'h0) ? 1'b0 : 1'b1;
                     rt_read_enable         <= 1'b1;
                     instr_valid            <= 1'b1;
                 end else if (funct == `FUNCT_SRA) begin

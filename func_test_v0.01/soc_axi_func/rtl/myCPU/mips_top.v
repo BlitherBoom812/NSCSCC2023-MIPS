@@ -184,6 +184,7 @@ module mips_top (
 
         .exception_type_o(if_exception_type_if_postif),
         .pc_o            (if_pc_if_postif),
+
         .inst_ren_o(inst_sram_ren_o),
         .inst_cache_ena_o(inst_sram_cache_ena_o)
     );
@@ -191,9 +192,10 @@ module mips_top (
     if_postif mips_if_postif(
         .clock_i            (clock_i),
         .reset_i            (reset_i),
-
+        
+        .if_exception_type_i(if_exception_type_if_postif),
         .if_pc_i            (if_pc_if_postif),
-        .if_exception_type_i(if_exception_type_postif),
+        
         .if_inst_ren_i(inst_sram_ren_o),
 
         .branch_enable_i(id_branch_enable),
@@ -219,6 +221,7 @@ module mips_top (
         .exception_type_o(postif_exception_type_postif_id),
         .postif_stall_o  (postif_stall_request),
         .inst_ren_o(postif_inst_ren_postif_id),
+        .inst_ok_o(postif_inst_ok_postif_id),
         .inst_valid_o(postif_inst_valid_postif_id)
     );
 

@@ -69,6 +69,10 @@ module cp0 (
             cp0_status     <= 32'b00000000010000000000000000000000;
             cp0_cause      <= 32'b0;
             cp0_epc        <= 32'b0;
+            cp0_read_data_o <= 32'b0;
+            cp0_return_pc_o <= 32'b0;
+            timer_int_o <= 1'b0;
+            flush_o        <= 1'b0;
         end else begin
             exception_flag = (flush == 1'b1) ? 1 : 0;
             ;

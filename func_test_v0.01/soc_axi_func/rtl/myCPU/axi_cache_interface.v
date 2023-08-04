@@ -87,7 +87,7 @@ module axi_cache_interface (
     output bready_o
 );
 
-    assign arvalid_o      = data_arvalid_i | inst_arvalid_i;
+    assign arvalid_o      = data_ren_i ? data_arvalid_i : inst_ren_i ? inst_arvalid_i : 1'b0;
 
     assign arlen_o        = inst_ren_i ? (inst_cache_ena_i ? `INST_BURST_NUM : 8'h00) : (data_ren_i ? (data_cache_ena_i ? `DATA_BURST_NUM : 8'h00) : 8'h00);
     assign arid_o         = 4'b0000;
@@ -123,6 +123,7 @@ module axi_cache_interface (
     assign awvalid_o = data_awvalid_i;
     assign data_awready_o = awready_i;
 
+    assign wid_o = data_wid_i;
     assign wdata_o = data_wdata_i;
     assign wstrb_o = data_wstrb_i;
     assign wlast_o = data_wlast_i;
