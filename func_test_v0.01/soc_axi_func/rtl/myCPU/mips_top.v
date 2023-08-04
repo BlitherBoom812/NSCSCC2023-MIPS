@@ -164,7 +164,7 @@ module mips_top (
     // new 4 types of stall: data_stall(outside); postif_stall_request, exe_stall_request, id_stall_request(inside)
     // final new 4 types of stall: postif_stall_request, exe_stall_request, id_stall_request, mem_stall_request(inside)
     wire stall_all;
-    assign stall_all       = mem_stall_request || exe_stall_request || postif_stall_request;
+    assign stall_all       = mem_stall_request || exe_stall_request;
     // flush
     assign flush_o         = (reset_i == `RST_ENABLE) ? 1'b0 : is_exception;
     // debug
@@ -215,6 +215,7 @@ module mips_top (
         .inst_ren_i(if_postif_inst_ren_postif),
         .inst_ok_i   (inst_sram_ok_i),
         .inst_valid_i (if_postif_inst_valid_postif),
+        .inst_stall_i(inst_stall_i),
 
         .pc_o            (postif_pc_postif_id),
         .inst_o          (postif_inst_postif_id),

@@ -22,7 +22,10 @@ module postif_id (
     assign id_stall = stall_i[1];
     assign exe_stall = stall_i[2];
     assign data_stall = stall_i[3];
-    
+
+    reg valid_buf;
+    reg valid_buffered;
+
     reg [31:0] pc_buf;  // store temporarily
     reg [31:0] inst_buf;
     reg buffered;
@@ -32,6 +35,8 @@ module postif_id (
             id_pc_o             <= 32'b0;
             id_inst_o           <= 32'b0;
             id_exception_type_o <= 6'h0;
+            valid_buf <= 1'b0;
+            valid_buffered <= 1'b0;
             pc_buf <= 32'h0000_0000;
             inst_buf <= 32'h0000_0000;
             buffered <= 1'b0;
@@ -39,22 +44,31 @@ module postif_id (
             id_pc_o             <= id_pc_o;
             id_inst_o           <= 32'b0;
             id_exception_type_o <= 6'h0;
+            if (branch_enable_i) begin
+                valid_buf <= 1'b0;
+                valid_buffered <= 1'b1;
+            end
         end
         else if ((id_stall | exe_stall | data_stall) == 1'b1) begin // inst stall = 0, but stall behind
             pc_buf <= postif_pc_i;
             inst_buf <= postif_inst_i;
             buffered <= 1'b1;
+            if (branch_enable_i) begin
+                valid_buf <= 1'b0;
+                valid_buffered <= 1'b1;
+            end
         end else begin // no stall
             id_pc_o             <= 
                 (buffered === 1'b1) ? pc_buf : 
-                ((~branch_enable_i) & postif_inst_valid_i) ? postif_pc_i : 32'h0000_0000;
+                (postif_inst_valid_i & ((valid_buffered & valid_buf) | (~valid_buffered & ~branch_enable_i))) ? postif_pc_i : 32'h0000_0000;
             id_inst_o           <= 
                 (buffered === 1'b1) ? inst_buf : 
-                ((~branch_enable_i) & postif_inst_valid_i) ? postif_inst_i : 32'h0000_0000;
+                (postif_inst_valid_i & ((valid_buffered & valid_buf) | (~valid_buffered & ~branch_enable_i))) ? postif_inst_i : 32'h0000_0000;
             id_exception_type_o <= postif_exception_type_i;
             pc_buf <= 32'h0000_0000;
             inst_buf <= 32'h0000_0000;
             buffered <= 1'b0;
+            valid_buffered <= 1'b0;
         end
     end
 endmodule

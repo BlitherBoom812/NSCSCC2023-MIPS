@@ -105,6 +105,7 @@ module mycpu_top (
     wire        inst_sram_ren;
     wire inst_sram_cache_ena;
     wire        inst_sram_ok;
+    wire inst_stall;
 
     wire        data_sram_ren;
     wire [ 3:0] data_sram_wen;
@@ -174,6 +175,7 @@ module mycpu_top (
         .inst_cpu_cache_ena_i(inst_sram_cache_ena),
         .inst_cpu_rdata_o(inst_sram_rdata),
         .inst_cpu_ok_o(inst_sram_ok),
+        .inst_cpu_stall_o(inst_stall),
 
         .data_cpu_addr_i (data_sram_addr),
         .data_cpu_ren_i  (data_sram_ren),

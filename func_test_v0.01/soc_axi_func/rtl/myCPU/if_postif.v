@@ -29,6 +29,10 @@ module if_postif(
             postif_exception_type_o <= if_exception_type_i;
             postif_inst_ren_o <= if_inst_ren_i;
             postif_inst_valid_o <= ~branch_enable_i;
+        end else begin
+            if (branch_enable_i) begin
+                postif_inst_valid_o <= 1'b0;
+            end
         end
     end
 
