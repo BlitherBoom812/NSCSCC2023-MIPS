@@ -49,33 +49,25 @@
 //
 //               Revision 1.1.1.1  2002/10/29 20:29:10  rherveille
 
-module div_uu(
-	input 				  clk, // system clock
-	input 				  ena, // clock enable
+module div_core(
+	input 				  		clk, // system clock
+	input 				  		ena, // clock enable
 
-	input  [z_width -1:0] z, // divident
-	input  [d_width -1:0] d, // divisor
-	output [d_width -1:0] q, // quotient
-	output [d_width -1:0] s, // remainder
-	output 				  div0,
-	output                ovf
+	input  [63:0] 				z, // divident
+	input  [31:0] 				d, // divisor
+	output reg[31:0] 			q, // quotient
+	output reg[31:0] 			s, // remainder
+	output reg				  	div0,
+	output reg               	ovf
 );
 
-	parameter z_width = 16;
-	parameter d_width = z_width /2;
+	reg [31:0] q_pipe  [31:0];
+	reg [64:0] s_pipe  [32:0];
+	reg [64:0] d_pipe  [32:0];
 
-	reg [d_width-1:0] q;
-	reg [d_width-1:0] s;
-	reg div0;
-	reg ovf;
+	reg [32:0] div0_pipe, ovf_pipe;
 
-	reg [d_width-1:0] q_pipe  [d_width-1:0];
-	reg [z_width:0] s_pipe  [d_width:0];
-	reg [z_width:0] d_pipe  [d_width:0];
-
-	reg [d_width:0] div0_pipe, ovf_pipe;
-
-	reg [z_width:0] tmp;
+	reg [64:0] tmp;
 	
 	// perform parameter checks
 
@@ -83,11 +75,11 @@ module div_uu(
 
 	// generate divisor (d) pipe
 	always @(d)
-	  d_pipe[0] <= {1'b0, d, {(z_width-d_width){1'b0}} };
+	  d_pipe[0] <= {1'b0, d, {32{1'b0}} };
 
 	always @(posedge clk)
 	  if(ena)
-	    for(n0=1; n0 <= d_width; n0=n0+1)
+	    for(n0=1; n0 <= 32; n0=n0+1)
 	       d_pipe[n0] <= d_pipe[n0-1];
 
 	// generate internal remainder pipe
@@ -96,11 +88,11 @@ module div_uu(
 
 	always @(posedge clk)
 	  if(ena)
-	    for(n1=1; n1 <= d_width; n1=n1+1) begin
-			if(s_pipe[n1-1][z_width])
-				s_pipe[n1] <= {s_pipe[n1-1][z_width-1:0], 1'b0} + d_pipe[n1-1];
+	    for(n1=1; n1 <= 32; n1=n1+1) begin
+			if(s_pipe[n1-1][64])
+				s_pipe[n1] <= {s_pipe[n1-1][63:0], 1'b0} + d_pipe[n1-1];
 			else
-				s_pipe[n1] <= {s_pipe[n1-1][z_width-1:0], 1'b0} - d_pipe[n1-1];
+				s_pipe[n1] <= {s_pipe[n1-1][63:0], 1'b0} - d_pipe[n1-1];
 		end
 
 	// generate quotient pipe
@@ -109,20 +101,20 @@ module div_uu(
 
 	always @(posedge clk)
 	  if(ena)
-	    for(n2=1; n2 < d_width; n2=n2+1) begin
-			q_pipe[n2] <= {q_pipe[n2-1][d_width-2:0], ~s_pipe[n2][z_width]};
+	    for(n2=1; n2 < 32; n2=n2+1) begin
+			q_pipe[n2] <= {q_pipe[n2-1][30:0], ~s_pipe[n2][64]};
 		end
 
 	// flags (divide_by_zero, overflow)
 	always @(z or d)
 	begin
-	  ovf_pipe[0]  <= !(z[z_width-1:d_width] < d);
+	  ovf_pipe[0]  <= !(z[63:32] < d);
 	  div0_pipe[0] <= ~|d;
 	end
 
 	always @(posedge clk)
 	  if(ena)
-	    for(n3=1; n3 <= d_width; n3=n3+1)
+	    for(n3=1; n3 <= 32; n3=n3+1)
 	    begin
 	        ovf_pipe[n3] <= ovf_pipe[n3-1];
 	        div0_pipe[n3] <= div0_pipe[n3-1];
@@ -131,23 +123,23 @@ module div_uu(
 	// assign outputs
 	always @(posedge clk)
 	  if(ena)
-	    ovf <= ovf_pipe[d_width];
+	    ovf <= ovf_pipe[32];
 
 	always @(posedge clk)
 	  if(ena)
-	    div0 <= div0_pipe[d_width];
+	    div0 <= div0_pipe[32];
 
 	always @(posedge clk)
 	  if(ena) begin
-		q <= {q_pipe[d_width-1][d_width-2:0], ~s_pipe[d_width][z_width]};
+		q <= {q_pipe[31][30:0], ~s_pipe[32][64]};
 	  end
 
 	always @(posedge clk)
 	  if(ena) begin
-		if(s_pipe[d_width][z_width])
-			tmp = s_pipe[d_width] + d_pipe[d_width];
+		if(s_pipe[32][64])
+			tmp = s_pipe[32] + d_pipe[32];
 		else
-			tmp = s_pipe[d_width];
-		s <= tmp[z_width-1:z_width-d_width];
+			tmp = s_pipe[32];
+		s <= tmp[63:32];
 	  end
 endmodule

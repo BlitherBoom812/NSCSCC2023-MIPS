@@ -1,5 +1,5 @@
 `include "defines.vh"
-module div_wrapper(
+module div(
     input             clock,
     input             reset,
     input             start,
@@ -27,7 +27,7 @@ wire [31:0] dremain;
 wire div_done;
 reg [DIV_CYCLES:0] div_stage;
 
-div_uu #(.z_width(64)) div_uu0(
+div_core div_core0(
     .clk (clock),
     .ena (start),
     .z   ({32'h0, abs_opa1}),

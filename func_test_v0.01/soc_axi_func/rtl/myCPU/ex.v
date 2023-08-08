@@ -64,12 +64,20 @@ assign exception_type_o = {exception_type_i[31:30], is_overflow, exception_type_
 wire[31:0] alu_output_data;
 wire[31:0] hilo_data_forward, cp0_data_forward;
 wire[63:0] mul_data, div_data, hilo_write_data;
-wire start, div_done, flag_unsigned, div_stall;
-assign start = (aluop_i == `ALUOP_DIV || aluop_i == `ALUOP_DIVU) ? 1 : 0;
-assign flag_unsigned = (aluop_i == `ALUOP_DIVU) ? 1 : 0;
+wire div_start, div_done, div_flag_unsigned, div_stall;
+assign div_start = (aluop_i == `ALUOP_DIV || aluop_i == `ALUOP_DIVU) ? 1 : 0;
+assign div_flag_unsigned = (aluop_i == `ALUOP_DIVU) ? 1 : 0;
+
+wire mul_start, mul_done, mul_flag_unsigned, mul_stall;
+assign mul_start = (aluop_i == `ALUOP_MULT || aluop_i == `ALUOP_MULTU) ? 1 : 0;
+assign mul_flag_unsigned = (aluop_i == `ALUOP_MULTU) ? 1 : 0;
 
 reg div_done_t;
 assign div_stall = (aluop_i == `ALUOP_DIV || aluop_i == `ALUOP_DIVU) ? !div_done_t : 0;
+
+reg mul_done_t;
+assign mul_stall = (aluop_i == `ALUOP_MULT || aluop_i == `ALUOP_MULTU) ? !mul_done_t : 0;
+
 reg [31:0] pre_pc;
 always @ (posedge clk) begin
     if (rst == 1'b0) begin
@@ -80,9 +88,11 @@ always @ (posedge clk) begin
         if (pre_pc != pc_i) begin
             pre_pc = pc_i;
             div_done_t = 1'b0;
+            mul_done_t = 1'b0;
         end 
         else begin
             if (div_done == 1'b1) div_done_t = 1'b1; 
+            if (mul_done == 1'b1) mul_done_t = 1'b1; 
         end
     end
 end
@@ -155,7 +165,7 @@ always @ (*) begin
         
         cp0_write_data_o <= rt_data_i;
         mem_to_reg_o <= mem_to_reg_i;
-        exe_stall_request_o <= div_stall;
+        exe_stall_request_o <= div_stall | mul_stall;
     end
 end
     
@@ -256,7 +266,7 @@ function [4:0] get_regfile_write_addr(input [7:0] aluop, input [4:0] regfile_wri
         endcase
     end
 endfunction
-
+/*
 assign mul_data = get_mult_data(aluop_i, rs_data_i, rt_data_i);
     
 function [63:0] get_mult_data(input [7:0] aluop, input [31:0] rs_value, input [31:0] rt_value);
@@ -268,7 +278,7 @@ function [63:0] get_mult_data(input [7:0] aluop, input [31:0] rs_value, input [3
         endcase
     end
 endfunction
-
+*/
 assign hilo_write_data = get_hilo_write_data(aluop_i, mul_data, div_data, rs_data_i);
     
 function [63:0] get_hilo_write_data(input [7:0] aluop, input [63:0] mul_data, input [63:0] div_data, input [31:0] rs_value);
@@ -282,11 +292,22 @@ function [63:0] get_hilo_write_data(input [7:0] aluop, input [63:0] mul_data, in
     end
 endfunction
 
-div_wrapper div_wrapper0(
+mul mul0(
     .clock(clk),
     .reset(rst),
-    .start(start),
-    .flag_unsigned(flag_unsigned),
+    .start(mul_start),
+    .flag_unsigned(mul_flag_unsigned),
+    .operand1(rs_data_i),
+    .operand2(rt_data_i),
+    .result(mul_data),
+    .done(mul_done)
+);
+
+div div0(
+    .clock(clk),
+    .reset(rst),
+    .start(div_start),
+    .flag_unsigned(div_flag_unsigned),
     .operand1(rs_data_i),
     .operand2(rt_data_i),
     .result(div_data),

@@ -26,9 +26,9 @@ module mips_top(
 
 wire[31:0] if_pc_if_id;
 wire[31:0] if_exception_type_if_id;
-wire[31:0] rom_inst_if_id;
+wire[31:0] rom_instr_if_id;
 
-wire[31:0] if_id_inst_id;
+wire[31:0] if_id_instr_id;
 wire[31:0] if_id_pc_id;
 wire[31:0] if_id_exception_type_id;
 
@@ -134,7 +134,7 @@ wire is_exception;
 wire [31:0] cp0_return_pc;
 
 assign inst_sram_addr = if_pc_if_id;
-assign rom_inst_if_id = inst_sram_rdata;
+assign rom_instr_if_id = inst_sram_rdata;
 
 assign data_sram_ren  = mem_ram_read_enable;
 assign data_sram_wen = mem_ram_write_enable ? mem_ram_write_select : 4'b0000;
@@ -152,10 +152,10 @@ assign debug_wb_data = (rst == 1'b0) ? 32'h00000000 : mem_wb_regfile_write_data;
 assign flush = (rst == 1'b0) ? 1'b0: is_exception;
 
 pc mips_pc(
-    .reset_i(rst),
-    .clock_i(clk),
-    .stall_i({data_stall, exe_stall_request, id_stall_request, inst_stall}),
-    .exception_i(is_exception),
+    .rst(rst),
+    .clk(clk),
+    .stall({data_stall, exe_stall_request, id_stall_request, inst_stall}),
+    .exception(is_exception),
     .exception_pc_i(cp0_return_pc),
     .branch_enable_i(id_branch_enable),
     .branch_addr_i(id_branch_addr),
@@ -165,22 +165,22 @@ pc mips_pc(
 );
 
 if_id mips_if_id(
-    .reset_i(rst),
-    .clock_i(clk),
-    .if_pc_i(if_pc_if_id),
-    .if_inst_i(rom_inst_if_id), 
-    .exception_i(is_exception),
-    .stall_i({data_stall, exe_stall_request, id_stall_request, inst_stall}),
-    .if_exception_type_i(if_exception_type_if_id),
+    .rst(rst),
+    .clk(clk),
+    .if_pc(if_pc_if_id),
+    .if_instr(rom_instr_if_id), 
+    .exception(is_exception),
+    .stall({data_stall, exe_stall_request, id_stall_request, inst_stall}),
+    .if_exception_type(if_exception_type_if_id),
             
-    .id_inst_o(if_id_inst_id),
-    .id_pc_o(if_id_pc_id),
-    .id_exception_type_o(if_id_exception_type_id)
+    .id_instr(if_id_instr_id),
+    .id_pc(if_id_pc_id),
+    .id_exception_type(if_id_exception_type_id)
 );
 
 id mips_id(
     .rst(rst),
-    .instr_i(if_id_inst_id),
+    .instr_i(if_id_instr_id),
     .pc_i(if_id_pc_id),
     .rs_data_i(regfile_rs_data_id),
     .rt_data_i(regfile_rt_data_id),
@@ -447,8 +447,8 @@ mem_wb mips_mem_wb(
 );
 
 regfile mips_regfile(
-    .rs_read_addr(if_id_inst_id[25:21]),
-    .rt_read_addr(if_id_inst_id[20:16]),
+    .rs_read_addr(if_id_instr_id[25:21]),
+    .rt_read_addr(if_id_instr_id[20:16]),
     .clk(clk),
     .rst(rst),
     .regfile_write_enable(mem_wb_regfile_write_enable),
