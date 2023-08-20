@@ -24,6 +24,8 @@ reg [31:0] cp0_status;
 reg [31:0] cp0_cause;
 reg [31:0] cp0_epc;
 
+reg add = 0;
+
 reg is_int;
 reg timer_int;
 reg flush;
@@ -77,8 +79,13 @@ begin
     else begin
         exception_flag = (flush == 1'b1) ? 1 : 0;;
         if(exception_flag)
-            flush = 0;      
-        cp0_count = cp0_count + 1;
+            flush = 0;
+        if(add == 0)
+            add = 1;
+        else begin
+            cp0_count = cp0_count + 1;
+            add = 0;
+        end
         if(cp0_compare != 32'b0 && cp0_compare == cp0_count) begin
             timer_int = 1;
             if(cp0_status[`EXL] ==0) begin
