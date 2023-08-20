@@ -402,6 +402,13 @@ always @ (*) begin
             regfile_write_addr_o <= rt;
             instr_valid <= 1'b1;
         end
+		`ID_RLWINM: begin
+			regfile_write_enable_o <= 1'b1;
+            aluop_o <= `ALUOP_RLWINM;
+            rs_read_enable <= 1'b1;
+            regfile_write_addr_o <= rt;
+            instr_valid <= 1'b1;
+		end
         `ID_LUI: begin
             regfile_write_enable_o <= 1'b1;
             aluop_o <= `ALUOP_LUI;

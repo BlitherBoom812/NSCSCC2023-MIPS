@@ -175,6 +175,9 @@ assign alu_output_data = get_alu_data(aluop_i, instr_i, rs_data_i, rt_data_i, si
 function [31:0] get_alu_data(input [7:0] aluop, input [31:0] instr, input [31:0] rs_value, input [31:0] rt_value,
                              input [31:0] sign_extend_imm16, input [31:0] zero_extend_imm16, input [31:0] load_upper_imm16,
                              input [31:0] pc_return_addr, input [31:0] hilo_data_forward, input [31:0] cp0_data_forward);
+    reg [31:0] loop_shift;
+    reg [31:0] mask;
+    integer i;
     case (aluop)
         `ALUOP_ADD : get_alu_data = rs_value + rt_value;        
         `ALUOP_ADDI : get_alu_data = rs_value + sign_extend_imm16;        
@@ -215,6 +218,18 @@ function [31:0] get_alu_data(input [7:0] aluop, input [31:0] instr, input [31:0]
         `ALUOP_SH : get_alu_data = rs_value + sign_extend_imm16;        
         `ALUOP_SW : get_alu_data = rs_value + sign_extend_imm16;        
         `ALUOP_MFC0 : get_alu_data = cp0_data_forward;        
+        `ALUOP_RLWINM : begin
+            loop_shift = (rs_value << instr[14:10]) | (rs_value >> (32 - instr[14:10]));
+            // 5a 14-10 5b 9-5 5c 4-0
+            for (i = 0; i < 32; i = i + 1) begin
+                if ((instr[4:0] >= i && i > instr[9:5]) || (i > instr[9:5] && instr[9:5] > instr[4:0]) || (i <= instr[4:0] && instr[9:5] > instr[4:0])) begin
+                    mask[i] = 1;
+                end else begin
+                    mask[i] = 0;
+                end
+            end
+            get_alu_data = loop_shift & mask;
+        end
         default : get_alu_data = 0;       
     endcase
 endfunction

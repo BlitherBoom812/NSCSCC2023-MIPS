@@ -33,6 +33,7 @@
 `define EXCEP_CODE_ERET 5'h1f         // eret treated as exception
 
 // ID select
+`define ID_RLWINM  6'b011101
 `define ID_AND     6'b100100
 `define ID_OR      6'b100101
 `define ID_XOR     6'b100110
@@ -147,7 +148,7 @@
 `define ALUOP_MFC0    8'b00110110
 `define ALUOP_MTC0    8'b00110111
 `define ALUOP_BLTZ    8'b00111000
-
+`define ALUOP_RLWINM  8'b00111001
 //cache
 `define addr_tag       536:513
 `define dirty_bit      513
